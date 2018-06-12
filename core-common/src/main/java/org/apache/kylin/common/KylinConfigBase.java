@@ -686,6 +686,10 @@ abstract public class KylinConfigBase implements Serializable {
         return Integer.parseInt(this.getOptional("kylin.job.metadata-persist-retry", "5"));
     }
 
+    public String getCubeInMemBuilderClass() {
+        return getOptional("kylin.job.cube-inmem-builder-class", "org.apache.kylin.cube.inmemcubing.DoggedCubeBuilder");
+    }
+
     // ============================================================================
     // SOURCE.HIVE
     // ============================================================================

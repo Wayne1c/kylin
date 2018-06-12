@@ -19,14 +19,13 @@
 package org.apache.kylin.cube.inmemcubing;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.TreeSet;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -47,6 +46,7 @@ import org.apache.kylin.gridtable.GTScanRequest;
 import org.apache.kylin.gridtable.GTScanRequestBuilder;
 import org.apache.kylin.gridtable.GridTable;
 import org.apache.kylin.gridtable.IGTScanner;
+import org.apache.kylin.gridtable.IGTStore;
 import org.apache.kylin.measure.topn.Counter;
 import org.apache.kylin.measure.topn.TopNCounter;
 import org.apache.kylin.metadata.datatype.DoubleMutable;
@@ -114,7 +114,7 @@ public class InMemCubeBuilder extends AbstractInMemCubeBuilder {
         // Below several store implementation are very similar in performance. The ConcurrentDiskStore is the simplest.
         // MemDiskStore store = new MemDiskStore(info, memBudget == null ? MemoryBudgetController.ZERO_BUDGET : memBudget);
         // MemDiskStore store = new MemDiskStore(info, MemoryBudgetController.ZERO_BUDGET);
-        ConcurrentDiskStore store = new ConcurrentDiskStore(info);
+        IGTStore store = new ConcurrentDiskStore(info);
 
         GridTable gridTable = new GridTable(info, store);
         return gridTable;
@@ -123,7 +123,7 @@ public class InMemCubeBuilder extends AbstractInMemCubeBuilder {
     @Override
     public <T> void build(BlockingQueue<T> input, InputConverterUnit<T> inputConverterUnit, ICuboidWriter output)
             throws IOException {
-        ConcurrentNavigableMap<Long, CuboidResult> result = build(
+        NavigableMap<Long, CuboidResult> result = build(
                 RecordConsumeBlockingQueueController.getQueueController(inputConverterUnit, input));
         try {
             for (CuboidResult cuboidResult : result.values()) {
@@ -135,9 +135,9 @@ public class InMemCubeBuilder extends AbstractInMemCubeBuilder {
         }
     }
 
-    public <T> ConcurrentNavigableMap<Long, CuboidResult> build(RecordConsumeBlockingQueueController<T> input)
+    public <T> NavigableMap<Long, CuboidResult> build(RecordConsumeBlockingQueueController<T> input)
             throws IOException {
-        final ConcurrentNavigableMap<Long, CuboidResult> result = new ConcurrentSkipListMap<Long, CuboidResult>();
+        final NavigableMap<Long, CuboidResult> result = new ConcurrentSkipListMap<Long, CuboidResult>();
         build(input, new ICuboidCollector() {
             @Override
             public void collect(CuboidResult cuboidResult) {
@@ -216,7 +216,7 @@ public class InMemCubeBuilder extends AbstractInMemCubeBuilder {
     }
 
     private void throwExceptionIfAny() throws IOException {
-        ArrayList<Throwable> errors = new ArrayList<Throwable>();
+        List<Throwable> errors = Lists.newArrayList();
         for (int i = 0; i < taskThreadCount; i++) {
             Throwable t = taskThreadExceptions[i];
             if (t != null)

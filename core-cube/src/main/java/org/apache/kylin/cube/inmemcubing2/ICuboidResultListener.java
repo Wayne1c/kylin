@@ -16,22 +16,10 @@
  * limitations under the License.
 */
 
-package org.apache.kylin.cube.inmemcubing;
+package org.apache.kylin.cube.inmemcubing2;
 
-import java.io.IOException;
+import org.apache.kylin.cube.inmemcubing.CuboidResult;
 
-import org.apache.kylin.gridtable.GTRecord;
-import org.apache.kylin.gridtable.GridTable;
-
-/**
- */
-public interface ICuboidWriter {
-
-    void write(long cuboidId, GTRecord record) throws IOException;
-
-    void write(long cuboidId, GridTable table) throws IOException;
-
-    void flush() throws IOException;
-
-    void close() throws IOException;
+public interface ICuboidResultListener {
+    void finish(CuboidResult cuboidResult);
 }
