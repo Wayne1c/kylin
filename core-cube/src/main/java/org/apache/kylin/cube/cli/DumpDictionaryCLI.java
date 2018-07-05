@@ -20,8 +20,8 @@ package org.apache.kylin.cube.cli;
 
 import java.io.DataInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.Date;
 
 import org.apache.kylin.common.util.JsonUtil;
@@ -48,15 +48,17 @@ public class DumpDictionaryCLI {
         }
 
         if (f.getName().endsWith(".dict")) {
-            DictionaryInfoSerializer ser = new DictionaryInfoSerializer();
-            DictionaryInfo dictInfo = ser.deserialize(new DataInputStream(new FileInputStream(f)));
+            try (final DataInputStream inputStream = new DataInputStream(Files.newInputStream(f.toPath()))) {
+                DictionaryInfoSerializer ser = new DictionaryInfoSerializer();
+                DictionaryInfo dictInfo = ser.deserialize(inputStream);
 
-            System.out.println("============================================================================");
-            System.out.println("File: " + f.getAbsolutePath());
-            System.out.println(new Date(dictInfo.getLastModified()));
-            System.out.println(JsonUtil.writeValueAsIndentString(dictInfo));
-            dictInfo.getDictionaryObject().dump(System.out);
-            System.out.println();
+                System.out.println("============================================================================");
+                System.out.println("File: " + f.getAbsolutePath());
+                System.out.println(new Date(dictInfo.getLastModified()));
+                System.out.println(JsonUtil.writeValueAsIndentString(dictInfo));
+                dictInfo.getDictionaryObject().dump(System.out);
+                System.out.println();
+            }
         }
     }
 }

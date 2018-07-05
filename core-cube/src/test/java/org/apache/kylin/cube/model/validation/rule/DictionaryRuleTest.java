@@ -26,11 +26,10 @@ import static org.apache.kylin.cube.model.validation.rule.DictionaryRule.ERROR_T
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.List;
 
-import com.google.common.collect.Lists;
 import org.apache.kylin.common.KylinConfig;
 import org.apache.kylin.common.util.JsonUtil;
 import org.apache.kylin.common.util.LocalFileMetadataTestCase;
@@ -41,6 +40,8 @@ import org.apache.kylin.dict.GlobalDictionaryBuilder;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+
+import com.google.common.collect.Lists;
 
 public class DictionaryRuleTest extends LocalFileMetadataTestCase {
     private static KylinConfig config;
@@ -64,7 +65,7 @@ public class DictionaryRuleTest extends LocalFileMetadataTestCase {
             if (!f.getName().endsWith("json")) {
                 continue;
             }
-            CubeDesc desc = JsonUtil.readValue(new FileInputStream(f), CubeDesc.class);
+            CubeDesc desc = JsonUtil.readValue(Files.newInputStream(f.toPath()), CubeDesc.class);
             desc.init(config);
             ValidateContext vContext = new ValidateContext();
             rule.validate(desc, vContext);
@@ -109,7 +110,7 @@ public class DictionaryRuleTest extends LocalFileMetadataTestCase {
     private void testDictionaryDesc(String expectMessage, DictionaryDesc... descs) throws IOException {
         DictionaryRule rule = new DictionaryRule();
         File f = new File(LocalFileMetadataTestCase.LOCALMETA_TEST_DATA + "/cube_desc/test_kylin_cube_without_slr_left_join_desc.json");
-        CubeDesc desc = JsonUtil.readValue(new FileInputStream(f), CubeDesc.class);
+        CubeDesc desc = JsonUtil.readValue(Files.newInputStream(f.toPath()), CubeDesc.class);
 
         List<DictionaryDesc> newDicts = Lists.newArrayList(desc.getDictionaries());
         for (DictionaryDesc dictDesc : descs) {

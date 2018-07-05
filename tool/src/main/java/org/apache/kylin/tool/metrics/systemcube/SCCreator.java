@@ -23,9 +23,10 @@ import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -117,7 +118,7 @@ public class SCCreator extends AbstractApplication {
         }
 
         Set<SinkTool> sourceToolSet = JsonUtil.readValueWithTyping(
-                new BufferedInputStream(new FileInputStream(new File(inputConfig))), HashSet.class);
+                new BufferedInputStream(Files.newInputStream(Paths.get(inputConfig))), HashSet.class);
         run(owner, output, sourceToolSet);
     }
 

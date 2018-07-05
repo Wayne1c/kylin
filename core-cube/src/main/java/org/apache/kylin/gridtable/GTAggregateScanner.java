@@ -24,12 +24,11 @@ import java.io.Closeable;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -679,7 +678,7 @@ public class GTAggregateScanner implements IGTScanner, IGTBypassChecker {
                     }
 
                     if(spillBuffer == null) {
-                        dis = new DataInputStream(new FileInputStream(dumpedFile));
+                        dis = new DataInputStream(Files.newInputStream(dumpedFile.toPath()));
                     } else {
                         dis = new DataInputStream(new ByteArrayInputStream(spillBuffer));
                     }
@@ -721,7 +720,7 @@ public class GTAggregateScanner implements IGTScanner, IGTBypassChecker {
 
             public void spill() throws IOException {
                 if(spillBuffer == null) return;
-                OutputStream ops = new FileOutputStream(dumpedFile);
+                OutputStream ops = Files.newOutputStream(dumpedFile.toPath());
                 InputStream ips = new ByteArrayInputStream(spillBuffer);
                 IOUtils.copy(ips, ops);
                 spillBuffer = null;

@@ -19,9 +19,10 @@
 package org.apache.kylin.query;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -85,7 +86,7 @@ public class H2Database {
 
         try {
             tempFile = File.createTempFile("tmp_h2", ".csv");
-            FileOutputStream tempFileStream = new FileOutputStream(tempFile);
+            OutputStream tempFileStream = Files.newOutputStream(tempFile.toPath());
             String path = path(tableDesc);
             InputStream csvStream = metaMgr.getStore().getResource(path).inputStream;
 

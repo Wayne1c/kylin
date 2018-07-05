@@ -20,11 +20,10 @@ package org.apache.kylin.job;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.HashSet;
 import java.util.List;
@@ -76,7 +75,7 @@ public class DeployUtil {
             CubeDescManager.getInstance(config()).updateCubeDesc(cube.getDescriptor());//enforce signature updating
         }
     }
-    
+
     public static void deployMetadata() throws IOException {
         deployMetadata(LocalFileMetadataTestCase.LOCALMETA_TEST_DATA);
     }
@@ -166,7 +165,7 @@ public class DeployUtil {
         String factTablePath = "/data/" + factTableName + ".csv";
 
         File tmpFile = File.createTempFile(factTableName, "csv");
-        FileOutputStream out = new FileOutputStream(tmpFile);
+        OutputStream out = java.nio.file.Files.newOutputStream(tmpFile.toPath());
 
         InputStream tempIn = null;
         try {
@@ -179,7 +178,7 @@ public class DeployUtil {
             IOUtils.closeQuietly(out);
 
             store.deleteResource(factTablePath);
-            tempIn = new FileInputStream(tmpFile);
+            tempIn = java.nio.file.Files.newInputStream(tmpFile.toPath());
             store.putResource(factTablePath, tempIn, System.currentTimeMillis());
         } finally {
             IOUtils.closeQuietly(out);
@@ -209,7 +208,7 @@ public class DeployUtil {
             }
         }
         TABLE_NAMES.add(TABLE_SELLER_TYPE_DIM_TABLE); // the wrapper view VIEW_SELLER_TYPE_DIM need this table
-        
+
         // scp data files, use the data from hbase, instead of local files
         File tempDir = Files.createTempDir();
         String tempDirAbsPath = tempDir.getAbsolutePath();
@@ -221,7 +220,7 @@ public class DeployUtil {
 
             logger.info(String.format("get resource from hbase:/data/%s.csv", tablename));
             InputStream hbaseDataStream = metaMgr.getStore().getResource("/data/" + tablename + ".csv").inputStream;
-            FileOutputStream localFileStream = new FileOutputStream(localBufferFile);
+            OutputStream localFileStream = java.nio.file.Files.newOutputStream(localBufferFile.toPath());
             IOUtils.copy(hbaseDataStream, localFileStream);
 
             hbaseDataStream.close();
@@ -233,7 +232,7 @@ public class DeployUtil {
 
         ISampleDataDeployer sampleDataDeployer = SourceManager.getSource(model.getRootFactTable().getTableDesc())
                 .getSampleDataDeployer();
-        
+
         // create hive tables
         sampleDataDeployer.createSampleDatabase("EDW");
         for (String tablename : TABLE_NAMES) {
@@ -247,7 +246,7 @@ public class DeployUtil {
             logger.info(String.format("load data into %s", tablename));
             sampleDataDeployer.loadSampleData(tablename, tempDirAbsPath);
         }
-        
+
         // create the view automatically here
         sampleDataDeployer.createWrapperView(TABLE_SELLER_TYPE_DIM_TABLE, VIEW_SELLER_TYPE_DIM);
     }

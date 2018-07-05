@@ -19,10 +19,10 @@
 package org.apache.kylin.rest.controller;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -109,12 +109,12 @@ public class BasicController {
 
     protected void setDownloadResponse(String downloadFile, final HttpServletResponse response) {
         File file = new File(downloadFile);
-        try (InputStream fileInputStream = new FileInputStream(file); OutputStream output = response.getOutputStream()) {
+        try (final InputStream input = Files.newInputStream(file.toPath()); final OutputStream output = response.getOutputStream()) {
             response.reset();
             response.setContentType("application/octet-stream");
             response.setContentLength((int) (file.length()));
             response.setHeader("Content-Disposition", "attachment; filename=\"" + file.getName() + "\"");
-            IOUtils.copyLarge(fileInputStream, output);
+            IOUtils.copyLarge(input, output);
             output.flush();
         } catch (IOException e) {
             throw new InternalErrorException("Failed to download file: " + e.getMessage(), e);

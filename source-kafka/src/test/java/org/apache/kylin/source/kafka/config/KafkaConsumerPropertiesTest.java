@@ -22,9 +22,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Properties;
 
 import javax.xml.parsers.ParserConfigurationException;
@@ -59,7 +59,7 @@ public class KafkaConsumerPropertiesTest extends LocalFileMetadataTestCase {
     public void testLoadKafkaPropertiesAsHadoopJobConf() throws IOException, ParserConfigurationException, SAXException {
         KafkaConsumerProperties kafkaConsumerProperties = KafkaConsumerProperties.getInstanceFromEnv();
         Configuration conf = new Configuration(false);
-        conf.addResource(new FileInputStream(new File(kafkaConsumerProperties.getKafkaConsumerHadoopJobConf())), KafkaConsumerProperties.KAFKA_CONSUMER_FILE);
+        conf.addResource(Files.newInputStream(Paths.get(kafkaConsumerProperties.getKafkaConsumerHadoopJobConf())), KafkaConsumerProperties.KAFKA_CONSUMER_FILE);
         assertEquals("10000", conf.get("session.timeout.ms"));
 
         Properties prop = KafkaConsumerProperties.extractKafkaConfigToProperties(conf);

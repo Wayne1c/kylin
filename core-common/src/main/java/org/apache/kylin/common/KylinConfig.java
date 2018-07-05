@@ -20,16 +20,17 @@ package org.apache.kylin.common;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.StringReader;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.nio.ByteOrder;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Properties;
@@ -189,7 +190,7 @@ public class KylinConfig extends KylinConfigBase {
             KylinConfig config;
             try {
                 config = new KylinConfig();
-                InputStream is = new FileInputStream(uri);
+                InputStream is = Files.newInputStream(Paths.get(uri));
                 Properties prop = streamToProps(is);
                 config.reloadKylinConfig(prop);
             } catch (IOException e) {
@@ -349,13 +350,13 @@ public class KylinConfig extends KylinConfigBase {
                 logger.error("fail to locate " + KYLIN_CONF_PROPERTIES_FILE);
                 throw new RuntimeException("fail to locate " + KYLIN_CONF_PROPERTIES_FILE);
             }
-            loadPropertiesFromInputStream(new FileInputStream(propFile), orderedProperties);
+            loadPropertiesFromInputStream(Files.newInputStream(propFile.toPath()), orderedProperties);
 
             // 3. still support kylin.properties.override as secondary override
             // not suggest to use it anymore
             File propOverrideFile = new File(propFile.getParentFile(), propFile.getName() + ".override");
             if (propOverrideFile.exists()) {
-                loadPropertiesFromInputStream(new FileInputStream(propOverrideFile), orderedProperties);
+                loadPropertiesFromInputStream(Files.newInputStream(propOverrideFile.toPath()), orderedProperties);
             }
             return orderedProperties;
         } catch (IOException e) {
@@ -496,9 +497,9 @@ public class KylinConfig extends KylinConfigBase {
     }
 
     public void exportToFile(File file) throws IOException {
-        FileOutputStream fos = null;
+        OutputStream fos = null;
         try {
-            fos = new FileOutputStream(file);
+            fos = Files.newOutputStream(file.toPath());
             getAllProperties().store(fos, file.getAbsolutePath());
         } finally {
             IOUtils.closeQuietly(fos);

@@ -22,10 +22,10 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -117,8 +117,8 @@ public class ITDoggedCubeBuilderTest extends LocalFileMetadataTestCase {
     }
 
     private void fileCompare(File file, File file2) throws IOException {
-        BufferedReader r1 = new BufferedReader(new InputStreamReader(new FileInputStream(file), "UTF-8"));
-        BufferedReader r2 = new BufferedReader(new InputStreamReader(new FileInputStream(file2), "UTF-8"));
+        BufferedReader r1 = Files.newBufferedReader(file.toPath(), Charset.forName("UTF-8"));
+        BufferedReader r2 = Files.newBufferedReader(file2.toPath(), Charset.forName("UTF-8"));
 
         String line1, line2;
         do {

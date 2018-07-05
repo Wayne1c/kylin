@@ -23,8 +23,8 @@ import static org.junit.Assert.assertEquals;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -100,7 +100,7 @@ public class SCCreatorTest extends LocalFileMetadataTestCase {
         hiveSinkTool.setCubeDescOverrideProperties(cubeDescOverrideProperties);
 
         String outputPath = "src/test/resources/SCSinkTools.json";
-        try (BufferedOutputStream os = new BufferedOutputStream(new FileOutputStream(outputPath))) {
+        try (BufferedOutputStream os = new BufferedOutputStream(Files.newOutputStream(Paths.get(outputPath)))) {
             ObjectMapper mapper = new ObjectMapper();
             mapper.enableDefaultTyping();
             mapper.writeValue(os, Sets.newHashSet(hiveSinkTool));
@@ -125,7 +125,7 @@ public class SCCreatorTest extends LocalFileMetadataTestCase {
     }
 
     private Set<SinkTool> readSinkToolsJson(String jsonPath) throws Exception {
-        try (BufferedInputStream is = new BufferedInputStream(new FileInputStream(jsonPath))) {
+        try (BufferedInputStream is = new BufferedInputStream(Files.newInputStream(Paths.get(jsonPath)))) {
             ObjectMapper mapper = new ObjectMapper();
             mapper.enableDefaultTyping();
             return mapper.readValue(is, HashSet.class);

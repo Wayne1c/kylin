@@ -22,11 +22,11 @@ import static org.apache.calcite.sql.SqlDialect.CALCITE;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
+import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -177,7 +177,8 @@ public class KylinTestBase {
     }
 
     public static String getTextFromFile(File file) throws IOException {
-        BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file), "UTF-8"));
+        BufferedReader reader = new BufferedReader(
+                new InputStreamReader(java.nio.file.Files.newInputStream(file.toPath()), "UTF-8"));
         String line = null;
         StringBuilder stringBuilder = new StringBuilder();
         String ls = System.getProperty("line.separator");
@@ -552,7 +553,6 @@ public class KylinTestBase {
         });
     }
 
-
     protected void execAndCompPlan(String queryFolder, String[] exclusiveQuerys, boolean needSort) throws Exception {
         execAndCompPlan(queryFolder, exclusiveQuerys, needSort, new ICompareQueryTranslator() {
             @Override
@@ -712,8 +712,10 @@ public class KylinTestBase {
     protected int runSQL(File sqlFile, boolean debug, boolean explain) throws Exception {
         if (debug) {
             System.setProperty("calcite.debug", "true");
-            InputStream inputStream = new FileInputStream("src/test/resources/logging.properties");
-            LogManager.getLogManager().readConfiguration(inputStream);
+            try (InputStream inputStream = java.nio.file.Files
+                    .newInputStream(Paths.get("src/test/resources/logging.properties"))) {
+                LogManager.getLogManager().readConfiguration(inputStream);
+            }
         }
 
         String queryName = StringUtils.split(sqlFile.getName(), '.')[0];

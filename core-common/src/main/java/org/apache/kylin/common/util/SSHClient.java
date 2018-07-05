@@ -24,11 +24,11 @@ package org.apache.kylin.common.util;
  */
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 import org.apache.commons.io.IOUtils;
 import org.slf4j.LoggerFactory;
@@ -62,7 +62,7 @@ public class SSHClient {
     }
 
     public void scpFileToRemote(String localFile, String remoteTargetDirectory) throws Exception {
-        FileInputStream fis = null;
+        InputStream fis = null;
         try {
             logger.info("SCP file " + localFile + " to " + remoteTargetDirectory);
 
@@ -118,7 +118,7 @@ public class SSHClient {
             }
 
             // send a content of lfile
-            fis = new FileInputStream(localFile);
+            fis = Files.newInputStream(_lfile.toPath());
             byte[] buf = new byte[1024];
             while (true) {
                 int len = fis.read(buf, 0, buf.length);
@@ -147,7 +147,7 @@ public class SSHClient {
     }
 
     public void scpFileToLocal(String rfile, String lfile) throws Exception {
-        FileOutputStream fos = null;
+        OutputStream fos = null;
         try {
             logger.info("SCP remote file " + rfile + " to local " + lfile);
 
@@ -211,7 +211,7 @@ public class SSHClient {
                 out.flush();
 
                 // read a content of lfile
-                fos = new FileOutputStream(prefix == null ? lfile : prefix + file);
+                fos = Files.newOutputStream(Paths.get(prefix == null ? lfile : prefix + file));
                 int foo;
                 while (true) {
                     if (buf.length < filesize)

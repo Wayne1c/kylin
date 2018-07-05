@@ -24,8 +24,7 @@ import static org.junit.Assert.fail;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Iterator;
 
@@ -97,7 +96,7 @@ public class DictionaryProviderTest extends LocalFileMetadataTestCase{
         f.deleteOnExit();
         f.createNewFile();
         String dictClassName = dict.getClass().getName();
-        DataOutputStream out = new DataOutputStream(new FileOutputStream(f));
+        DataOutputStream out = new DataOutputStream(Files.newOutputStream(f.toPath()));
         out.writeUTF(dictClassName);
         dict.write(out);
         out.close();
@@ -106,7 +105,7 @@ public class DictionaryProviderTest extends LocalFileMetadataTestCase{
         Dictionary<String> dict2 = null;
         try {
             File f2 = new File(path);
-            in = new DataInputStream(new FileInputStream(f2));
+            in = new DataInputStream(Files.newInputStream(f2.toPath()));
             String dictClassName2 = in.readUTF();
             dict2 = (Dictionary<String>) ClassUtil.newInstance(dictClassName2);
             dict2.readFields(in);

@@ -19,8 +19,9 @@
 package org.apache.kylin.storage.hbase.util;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -448,10 +449,10 @@ public class DeployCoprocessorCLI {
 
             // upload
             uploadPath = new Path(coprocessorDir, newName);
-            FileInputStream in = null;
+            InputStream in = null;
             FSDataOutputStream out = null;
             try {
-                in = new FileInputStream(localCoprocessorFile);
+                in = Files.newInputStream(localCoprocessorFile.toPath());
                 out = fileSystem.create(uploadPath);
                 IOUtils.copy(in, out);
             } finally {

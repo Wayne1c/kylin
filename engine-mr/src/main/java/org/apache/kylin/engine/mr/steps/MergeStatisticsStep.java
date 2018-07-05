@@ -19,9 +19,10 @@
 package org.apache.kylin.engine.mr.steps;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
 import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
@@ -79,10 +80,10 @@ public class MergeStatisticsStep extends AbstractExecutable {
                 String fileKey = CubeSegment.getStatisticsResourcePath(CubingExecutableUtil.getCubeName(this.getParams()), segmentId);
                 InputStream is = rs.getResource(fileKey).inputStream;
                 File tempFile = null;
-                FileOutputStream tempFileStream = null;
+                OutputStream tempFileStream = null;
                 try {
                     tempFile = File.createTempFile(segmentId, ".seq");
-                    tempFileStream = new FileOutputStream(tempFile);
+                    tempFileStream = Files.newOutputStream(tempFile.toPath());
                     org.apache.commons.io.IOUtils.copy(is, tempFileStream);
                 } finally {
                     IOUtils.closeStream(is);

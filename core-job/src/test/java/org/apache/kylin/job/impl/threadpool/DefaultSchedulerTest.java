@@ -22,6 +22,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.FileNotFoundException;
+import java.nio.channels.ClosedByInterruptException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -202,6 +203,9 @@ public class DefaultSchedulerTest extends BaseSchedulerTest {
         thrown.expect(RuntimeException.class);
         thrown.expectMessage("too long wait time");
 
+        thrown.expect(ClosedByInterruptException.class);
+        thrown.expectMessage("closed by interrupt");
+
         DefaultChainedExecutable job = new DefaultChainedExecutable();
         BaseTestExecutable task1 = new FiveSecondSucceedTestExecutable();
         job.addTask(task1);
@@ -211,13 +215,15 @@ public class DefaultSchedulerTest extends BaseSchedulerTest {
         Thread.sleep(3000);
         //scheduler failed due to some reason
         scheduler.shutdown();
-
         waitForJobFinish(job.getId(), 6000);
     }
 
     @Test
     public void testSchedulerRestart() throws Exception {
         logger.info("testSchedulerRestart");
+
+        thrown.expect(ClosedByInterruptException.class);
+        thrown.expectMessage("closed by interrupt");
 
         DefaultChainedExecutable job = new DefaultChainedExecutable();
         BaseTestExecutable task1 = new FiveSecondSucceedTestExecutable();

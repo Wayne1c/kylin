@@ -19,8 +19,9 @@
 package org.apache.kylin.common;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
 import java.util.Properties;
 
 import org.apache.kylin.common.util.LocalFileMetadataTestCase;
@@ -47,7 +48,7 @@ public class HotLoadKylinPropertiesTestCase extends LocalFileMetadataTestCase {
         Properties conf = new Properties();
 
         //load
-        try (FileInputStream is = new FileInputStream(propFile)) {
+        try (final InputStream is = Files.newInputStream(propFile.toPath())) {
             conf.load(is);
             conf.setProperty(key, value);
         } catch (Exception e) {
@@ -55,7 +56,7 @@ public class HotLoadKylinPropertiesTestCase extends LocalFileMetadataTestCase {
         }
 
         //store
-        try (FileOutputStream out = new FileOutputStream(propFile)) {
+        try (OutputStream out = Files.newOutputStream(propFile.toPath())) {
             conf.store(out, null);
         } catch (Exception e) {
             System.err.println(e.getMessage());

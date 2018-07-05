@@ -19,10 +19,11 @@
 package org.apache.kylin.engine.mr.common;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.nio.file.Files;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -133,9 +134,9 @@ public class CubeStatsReader {
 
     private File writeTmpSeqFile(InputStream inputStream) throws IOException {
         File tempFile = File.createTempFile("kylin_stats_tmp", ".seq");
-        FileOutputStream out = null;
+        OutputStream out = null;
         try {
-            out = new FileOutputStream(tempFile);
+            out = Files.newOutputStream(tempFile.toPath());
             org.apache.commons.io.IOUtils.copy(inputStream, out);
         } finally {
             IOUtils.closeStream(inputStream);

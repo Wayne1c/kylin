@@ -19,9 +19,10 @@
 package org.apache.kylin.rest.util;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -48,9 +49,8 @@ public class ControllerSplitter {
         
         System.out.println("Processing " + f);
         
-        FileInputStream is = new FileInputStream(f);
-        List<String> lines = IOUtils.readLines(is, "UTF-8");
-        is.close();
+        List<String> lines = Files.readAllLines(f.toPath(), Charset.forName("UTF-8"));
+
         List<String> outLines = new ArrayList<>(lines.size());
         
         boolean del = false;
@@ -68,7 +68,7 @@ public class ControllerSplitter {
         }
         
         if (!dryRun && outLines.size() < lines.size()) {
-            FileOutputStream os = new FileOutputStream(f);
+            OutputStream os = Files.newOutputStream(f.toPath());
             IOUtils.writeLines(outLines, "\n", os, "UTF-8");
             os.close();
             System.out.println("UPDATED " + f);

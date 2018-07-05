@@ -19,8 +19,9 @@
 package org.apache.kylin.source.kafka.config;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -106,7 +107,7 @@ public class KafkaConsumerProperties {
         }
         Properties properties = new Properties();
         try {
-            FileInputStream is = new FileInputStream(propFile);
+            InputStream is = Files.newInputStream(propFile.toPath());
             Configuration conf = new Configuration();
             conf.addResource(is);
             properties.putAll(extractKafkaConfigToProperties(conf));
@@ -114,7 +115,7 @@ public class KafkaConsumerProperties {
 
             File propOverrideFile = new File(propFile.getParentFile(), propFile.getName() + ".override");
             if (propOverrideFile.exists()) {
-                FileInputStream ois = new FileInputStream(propOverrideFile);
+                InputStream ois = Files.newInputStream(propOverrideFile.toPath());
                 Configuration oconf = new Configuration();
                 oconf.addResource(ois);
                 properties.putAll(extractKafkaConfigToProperties(oconf));

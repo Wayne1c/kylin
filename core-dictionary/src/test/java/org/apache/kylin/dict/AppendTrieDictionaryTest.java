@@ -32,10 +32,11 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileFilter;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -45,7 +46,6 @@ import java.util.Random;
 import java.util.TreeMap;
 import java.util.UUID;
 
-import com.google.common.collect.Lists;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.kylin.common.KylinConfig;
@@ -59,6 +59,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
+
+import com.google.common.collect.Lists;
 
 public class AppendTrieDictionaryTest extends LocalFileMetadataTestCase {
     private static final String RESOURCE_DIR = "/dict/append_dict_test/" + UUID.randomUUID();
@@ -118,14 +120,14 @@ public class AppendTrieDictionaryTest extends LocalFileMetadataTestCase {
 
     @Test
     public void testEnglishWords() throws Exception {
-        InputStream is = new FileInputStream("src/test/resources/dict/english-words.80 (scowl-2015.05.18).txt");
+        InputStream is = Files.newInputStream(Paths.get("src/test/resources/dict/english-words.80 (scowl-2015.05.18).txt"));
         ArrayList<String> str = loadStrings(is);
         testStringDictAppend(str, null, false);
     }
 
     @Test
     public void testCategoryNames() throws Exception {
-        InputStream is = new FileInputStream("src/test/resources/dict/dw_category_grouping_names.dat");
+        InputStream is = Files.newInputStream(Paths.get("src/test/resources/dict/dw_category_grouping_names.dat"));
         ArrayList<String> str = loadStrings(is);
         testStringDictAppend(str, null, true);
     }
@@ -154,7 +156,7 @@ public class AppendTrieDictionaryTest extends LocalFileMetadataTestCase {
 
         AppendTrieDictionary<String> dict = null;
 
-        InputStream is = new FileInputStream("src/test/resources/dict/huge_key");
+        InputStream is = Files.newInputStream(Paths.get("src/test/resources/dict/huge_key"));
         BufferedReader reader = new BufferedReader(new InputStreamReader(is, "UTF-8"));
         try {
             String word;

@@ -19,8 +19,9 @@
 package org.apache.kylin.cube;
 
 import java.io.DataInputStream;
-import java.io.FileInputStream;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -41,9 +42,9 @@ public class CubeInstanceTest {
 
     @Before
     public void setUp() throws Exception {
-        InputStream fileInputStream = new FileInputStream("src/test/resources/learn_kylin_cube2.json");
+        InputStream inputStream = Files.newInputStream(Paths.get("src/test/resources/learn_kylin_cube2.json"));
         JsonSerializer<CubeInstance> jsonSerializer = new JsonSerializer<>(CubeInstance.class);
-        cubeInstance = jsonSerializer.deserialize(new DataInputStream(fileInputStream));
+        cubeInstance = jsonSerializer.deserialize(new DataInputStream(inputStream));
     }
 
     @Test
