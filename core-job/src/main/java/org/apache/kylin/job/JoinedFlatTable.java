@@ -25,6 +25,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import com.google.common.collect.Lists;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.kylin.common.KylinConfig;
 import org.apache.kylin.cube.CubeSegment;
@@ -188,8 +189,13 @@ public class JoinedFlatTable {
         }
     }
 
-    private static void appendDistributeStatement(StringBuilder sql, TblColRef redistCol) {
-        sql.append(" DISTRIBUTE BY ").append(colName(redistCol, true)).append(";\n");
+    private static void appendDistributeStatement(StringBuilder sql, List<TblColRef> redistCols) {
+        sql.append(" DISTRIBUTE BY ");
+        for (TblColRef redistCol : redistCols) {
+            sql.append(colName(redistCol, true)).append(",");
+        }
+        sql.deleteCharAt(sql.length() - 1);
+        sql.append(";\n");
     }
 
     private static void appendClusterStatement(StringBuilder sql, TblColRef clusterCol) {
@@ -257,11 +263,18 @@ public class JoinedFlatTable {
         StringBuilder sql = new StringBuilder();
         sql.append("INSERT OVERWRITE TABLE " + tableName + " SELECT * FROM " + tableName);
 
-        TblColRef clusterCol = flatDesc.getClusterBy();
-        if (clusterCol != null) {
-            appendClusterStatement(sql, clusterCol);
+        if (flatDesc.getClusterBy() != null) {
+            appendClusterStatement(sql, flatDesc.getClusterBy());
+        } else if (flatDesc.getDistributedBy() != null) {
+            appendDistributeStatement(sql, Lists.newArrayList(flatDesc.getDistributedBy()));
         } else {
-            appendDistributeStatement(sql, flatDesc.getDistributedBy());
+            int redistColumnCount = 3;
+            List factColumns = flatDesc.getFactColumns();
+
+            if (factColumns.size() < redistColumnCount)
+                redistColumnCount = factColumns.size();
+
+            appendDistributeStatement(sql, factColumns.subList(0, redistColumnCount));
         }
 
         return sql.toString();
