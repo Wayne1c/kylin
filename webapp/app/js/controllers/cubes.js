@@ -60,7 +60,7 @@ KylinApp.controller('CubesCtrl', function ($scope, $q, $routeParams, $location, 
       return defer.promise;
     }
 
-    $scope.list = function (offset, limit) {
+    $scope.list = function (offset, limit, otherQuery) {
       var defer = $q.defer();
       if (!$scope.projectModel.projects.length) {
         defer.resolve([]);
@@ -74,6 +74,12 @@ KylinApp.controller('CubesCtrl', function ($scope, $q, $routeParams, $location, 
         queryParam.cubeName = $scope.listParams.cubeName;
       }
       queryParam.projectName = $scope.projectModel.selectedProject;
+
+      if(otherQuery) {
+        Object.keys(otherQuery).forEach(function(key) {
+          queryParam[key] = otherQuery[key];
+        });
+      }
 
       $scope.loading = true;
 

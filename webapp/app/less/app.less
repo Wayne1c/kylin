@@ -1018,6 +1018,20 @@ div[ng-controller="HybridCubeSchema"] {
   .col-xs-5 {
     z-index: 1;
   }
+  .fix-height-table {
+    max-height: 408px;
+    overflow: auto;
+  }
+  .edit-operator {
+    position: relative;
+    margin-bottom: 30px;
+  }
+  div[tooltip] + .tooltip {
+    white-space: nowrap;
+    .tooltip-inner {
+      max-width: 1000px;
+    }
+  }
 }
 
 .col-xs-offset-5 {

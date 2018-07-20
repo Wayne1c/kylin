@@ -36,7 +36,6 @@ KylinApp.controller('HybridCubeSchema', function (
   $scope.isEditInitialized = false;
 
   $scope.form = {
-    uuid: '',
     name: '',
     model: ''
   };
@@ -136,10 +135,7 @@ KylinApp.controller('HybridCubeSchema', function (
    */
   $scope.isModelSelectDisabled = function() {
     return !modelsManager.models.length
-      || $scope.table[$scope.RIGHT].dataRows.length
-      || $scope.table[$scope.LEFT].dataRows.some(function(row) {
-        return row.isChecked;
-      });
+      || $scope.table[$scope.RIGHT].dataRows.length;
   }
 
   /**
@@ -153,7 +149,7 @@ KylinApp.controller('HybridCubeSchema', function (
     var schema = getSchema();
 
     return Object.keys(schema).every(function(key) {
-      return schema[key] instanceof Array ? schema[key].length : schema[key];
+      return schema[key] instanceof Array ? schema[key].length > 1 : schema[key];
     });
   };
 
@@ -182,7 +178,11 @@ KylinApp.controller('HybridCubeSchema', function (
         var template = hybridCubeResultTmpl({ text: msg, schema: schema });
         MessageService.sendMsg(template, 'error', {}, true, 'top_center');
       } else {
-        SweetAlert.swal('', 'Created hybrid cube successfully.', 'success');
+        if($scope.isEdit) {
+          SweetAlert.swal('', 'Update hybrid cube successfully.', 'success');
+        } else {
+          SweetAlert.swal('', 'Create hybrid cube successfully.', 'success');
+        }
         $location.path('/models');
       }
       loadingRequest.hide();
@@ -208,21 +208,39 @@ KylinApp.controller('HybridCubeSchema', function (
    * @param {*} watchers 
    * @param {*} callback 
    */
-  $scope.$watchAll = function(watchers, callback) {
-    var isChanged = false;
+  $scope.$watchAll = function(watchers, type, callback) {
+    var changeStatus = [];
 
-    watchers.forEach(function(watcher, index) {
-      $scope.$watch(watcher, function(newValue, oldValue) {
-        if(JSON.stringify(newValue) !== JSON.stringify(oldValue)) {
-          isChanged = true;
-        }
-        if(watchers.length - 1 === index) {
-          isChanged = false;
-        }
-        if(isChanged) {
-          callback();
-        }
-      });
+    watchers.filter(function(watcher) {
+      return watcher;
+    }).forEach(function(watcher, index) {
+      changeStatus.push(false);
+
+      (function(i) {
+        $scope.$watch(watcher, function(newValue, oldValue) {
+          if(JSON.stringify(newValue) !== JSON.stringify(oldValue)) {
+            changeStatus[i] = true;
+          }
+
+          var shouldCallback = type === 'or'
+            ? changeStatus.some(function(status) {
+              return status;
+            })
+            : changeStatus.every(function(status) {
+              return status;
+            });
+
+          if(shouldCallback) {
+            callback();
+          }
+          if(watchers.length - 1 === i) {
+            changeStatus = changeStatus.map(function() {
+              return false;
+            });
+          }
+        });
+      })(index);
+
     });
   }
 
@@ -239,15 +257,15 @@ KylinApp.controller('HybridCubeSchema', function (
 
     $scope.$watch('modelsManager.models', function() {
       $scope.form.model = modelsManager.models[0] && modelsManager.models[0].name || '';
-
-      if ($scope.isEdit && !$scope.isEditInitialized) {
-        getEditHybridCube();
-        $scope.isEditInitialized = true;
-      }
     });
 
     $scope.$watch('cubeList.cubes', function() {
       loadTableData();
+
+      if ($scope.isEdit && !$scope.isEditInitialized && CubeList.cubes.length) {
+        getEditHybridCube();
+        $scope.isEditInitialized = true;
+      }
     });
   }
 
@@ -260,10 +278,6 @@ KylinApp.controller('HybridCubeSchema', function (
         return row.name;
       })
     };
-
-    if($scope.form.uuid) {
-      schema.uuid = $scope.form.uuid;
-    }
     return schema;
   }
 
@@ -300,25 +314,17 @@ KylinApp.controller('HybridCubeSchema', function (
 
   function loadTableData() {
     var cubesData = Object.create($scope.cubeList.cubes);
-    var usedCubeTable = $scope.table[$scope.RIGHT].dataRows;
     var unusedCubeTable = $scope.table[$scope.LEFT].dataRows = [];
 
     cubesData.forEach(function(cubeData) {
-      var isInUsed = usedCubeTable.some(function(row) {
-        return row.uuid === cubeData.uuid;
-      });
-
-      if(!isInUsed) {
-        cubeData.isChecked = false;
-        unusedCubeTable.push(cubeData);
-      }
+      cubeData.isChecked = false;
+      unusedCubeTable.push(cubeData);
     });
   }
 
   function hybridCubeResultTmpl(notification) {
     // Get the static notification template.
     var tmpl = notification.type == 'success' ? 'hybridResultSuccess.html' : 'hybridResultError.html';
-    console.log($templateCache.get(tmpl))
     return $interpolate($templateCache.get(tmpl))(notification);
   };
 
@@ -342,52 +348,26 @@ KylinApp.controller('HybridCubeSchema', function (
   })};
 
   function getEditHybridCube() {
+    loadingRequest.show();
+
     HybridCubeService.getByName({ hybrid_name: $routeParams.hybridName }, function (hybirdCube) {
-      var cubeList = [];
       $scope.form.uuid = hybirdCube.uuid;
       $scope.form.name = hybirdCube.name;
 
       hybirdCube.realizations.forEach(function(realizationItem) {
-        CubeDescService.query({cube_name: realizationItem.realization}, {}, function(detail) {
-          var cube = {
-            uuid: '',
-            name: detail[0].name,
-            model: detail[0].model_name,
-            status: '',
-            project: ''
-          };
+        var usedCubeName = realizationItem.realization;
+        var unusedCubeTable = $scope.table[$scope.LEFT];
 
-          $scope.form.model = cube.model;
-
-          CubeService.getCube({cubeId: realizationItem.realization}, {}, function(instance) {
-            cube.uuid = instance.uuid;
-            cube.status = instance.status;
-
-            cubeList.push(cube);
-
-            if(cubeList.length === hybirdCube.realizations.length) {
-              initializeHybridUsedCube();
-            }
-          });
+        unusedCubeTable.dataRows.forEach(function(row) {
+          if(row.name === usedCubeName)  {
+            row.isChecked = true;
+            $scope.form.model = row.model;
+          }
         });
       });
 
-      function initializeHybridUsedCube() {
-        cubeList.forEach(function(cube) {
-          var rowCube = $scope.table[$scope.LEFT].dataRows.filter(function(row) {
-            return row.uuid === cube.uuid;
-          })[0];
-
-          if(rowCube) {
-            rowCube.isChecked = true;
-          } else {
-            cube.isChecked = true;
-            $scope.table[$scope.LEFT].dataRows.push(cube);
-          }
-        });
-  
-        $scope.transferTo($scope.RIGHT);
-      }
+      $scope.transferTo($scope.RIGHT);
+      loadingRequest.hide();
     });
   }
 });
