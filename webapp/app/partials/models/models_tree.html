@@ -32,7 +32,7 @@
           <a href="cubes/add"><i class="fa fa-cube"></i>New Cube</a>
         </li>
         <li ng-if="userService.hasRole('ROLE_ADMIN') || hasPermission('project',projectModel, permissions.ADMINISTRATION.mask, permissions.MANAGEMENT.mask)">
-          <a href="hybrid-cube/add"><i class="fa fa-cube"></i>New Hybrid</a>
+          <a href="hybrid-cube/add"><i class="kylin-icon-hybrid"></i>New Hybrid</a>
         </li>
       </ul>
     </div>
@@ -42,7 +42,7 @@
   <!--tree-->
 
   <div>
-    <h3 class="text-info">Models</h3>
+    <h3 class="text-info">Models ({{modelsManager.models.length}})</h3>
   </div>
   <!--{{window}}px -->
   <div id="cube_model_trees" style="width:100%; height:250px; overflow:auto;margin-top: 20px;" class="cube_model_trees">
@@ -74,7 +74,7 @@
 
   <div ng-controller="HybridCubeCtrl">
     <div>
-      <h3 class="text-info">Hybrid</h3>
+      <h3 class="text-info">Hybrids ({{hybridCubeManager.hybridCubes.length}})</h3>
     </div>
     <div id="hybrid_cube_trees" style="width:100%; height:250px; overflow:auto;margin-top: 20px;" class="cube_model_trees">
       <ul class="list-group models-tree" id="hybrid-cube-tree">
@@ -85,11 +85,8 @@
                 Action <span class="ace-icon fa fa-caret-down icon-on-right"></span>
               </button>
               <ul class="dropdown-menu" role="menu" style="right:0;left:auto;" ng-if="(userService.hasRole('ROLE_ADMIN') || hasPermission('model',model, permissions.ADMINISTRATION.mask, permissions.MANAGEMENT.mask))">
-                <li><a ng-click="editHybridCube(hybridCube)"  title="Edit Hybrid" style="cursor:pointer;margin-right: 8px;" >Edit</a></li>
-                <li><a ng-click="cloneHybridCube(hybridCube)" title="Clone Hybrid"  style="cursor:pointer;margin-right: 8px;" >Clone </a></li>
+                <li><a ng-click="editHybridCube(hybridCube)" title="Edit Hybrid" style="cursor:pointer;margin-right: 8px;" >Edit</a></li>
                 <li><a ng-click="dropHybridCube(hybridCube)" title="Drop Hybrid"  style="cursor:pointer;margin-right: 8px;">Drop</a></li>
-                <li ng-if="userService.hasRole('ROLE_ADMIN')">
-                  <a ng-click="editHybridCube(hybridCube, true)">Edit(JSON)</a></li>
               </ul>
             </div>
           </div>

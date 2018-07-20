@@ -20,7 +20,7 @@
 
 KylinApp.controller('HybridCubeCtrl', function (
   $scope, $q, $location,
-  ProjectModel, hybridCubeManager
+  ProjectModel, hybridCubeManager, SweetAlert, HybridCubeService
 ) {
   $scope.projectModel = ProjectModel;
   $scope.hybridCubeManager = hybridCubeManager;
@@ -48,7 +48,49 @@ KylinApp.controller('HybridCubeCtrl', function (
 
   $scope.list();
 
+  $scope.$watch('projectModel.selectedProject', function() {
+    $scope.list();
+  });
+
   $scope.editHybridCube = function(hybridCube){
     $location.path("/hybrid-cube/edit/" + hybridCube.name);
+  };
+
+  $scope.dropHybridCube = function (hybridCube) {
+
+    SweetAlert.swal({
+      title: '',
+      text: 'Are you sure to drop this hybrid?',
+      type: '',
+      showCancelButton: true,
+      confirmButtonColor: '#DD6B55',
+      confirmButtonText: "Yes",
+      closeOnConfirm: true
+    }, function (isConfirm) {
+      if (isConfirm) {
+        var schema = {
+          hybrid: hybridCube.name,
+          model: hybridCube.model,
+          project: hybridCube.project,
+        };
+
+        loadingRequest.show();
+        HybridCubeService.drop(schema, {}, function (result) {
+          loadingRequest.hide();
+          SweetAlert.swal('Success!', 'Hybrid drop is done successfully', 'success');
+          location.reload();
+        }, function (e) {
+          loadingRequest.hide();
+          if (e.data && e.data.exception) {
+            var message = e.data.exception;
+            var msg = !!(message) ? message : 'Failed to take action.';
+            SweetAlert.swal('Oops...', msg, 'error');
+          } else {
+            SweetAlert.swal('Oops...', "Failed to take action.", 'error');
+          }
+        });
+      }
+
+    });
   };
 });
