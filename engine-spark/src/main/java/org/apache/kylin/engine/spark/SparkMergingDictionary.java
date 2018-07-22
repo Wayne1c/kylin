@@ -88,7 +88,7 @@ public class SparkMergingDictionary extends AbstractApplication implements Seria
         final String segmentId = optionsHelper.getOptionValue(OPTION_SEGMENT_ID);
         final String metaUrl = optionsHelper.getOptionValue(OPTION_META_URL);
         final String segmentIds = optionsHelper.getOptionValue(OPTION_MERGE_SEGMENT_IDS);
-        //System.setProperty("HADOOP_USER_NAME", "root");
+        System.setProperty("HADOOP_USER_NAME", "root");
 
         Class[] kryoClassArray = new Class[] { Class.forName("scala.reflect.ClassTag$$anon$1") };
 
