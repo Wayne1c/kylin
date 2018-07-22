@@ -21,8 +21,8 @@ package org.apache.kylin.rest.controller;
 import java.util.Collection;
 
 import org.apache.kylin.rest.request.HybridRequest;
+import org.apache.kylin.rest.response.HybridRespone;
 import org.apache.kylin.rest.service.HybridService;
-import org.apache.kylin.storage.hybrid.HybridInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -41,24 +41,22 @@ public class HybridController extends BasicController {
 
     @RequestMapping(value = "", method = RequestMethod.POST, produces = { "application/json" })
     @ResponseBody
-    public HybridInstance create(@RequestBody HybridRequest request) {
+    public HybridRespone create(@RequestBody HybridRequest request) {
         checkRequiredArg("hybrid", request.getHybrid());
         checkRequiredArg("project", request.getProject());
         checkRequiredArg("model", request.getModel());
         checkRequiredArg("cubes", request.getCubes());
-        HybridInstance instance = hybridService.createHybridCube(request.getHybrid(), request.getProject(), request.getModel(), request.getCubes());
-        return instance;
+        return hybridService.createHybridCube(request.getHybrid(), request.getProject(), request.getModel(), request.getCubes());
     }
 
     @RequestMapping(value = "", method = RequestMethod.PUT, produces = { "application/json" })
     @ResponseBody
-    public HybridInstance update(@RequestBody HybridRequest request) {
+    public HybridRespone update(@RequestBody HybridRequest request) {
         checkRequiredArg("hybrid", request.getHybrid());
         checkRequiredArg("project", request.getProject());
         checkRequiredArg("model", request.getModel());
         checkRequiredArg("cubes", request.getCubes());
-        HybridInstance instance = hybridService.updateHybridCube(request.getHybrid(), request.getProject(), request.getModel(), request.getCubes());
-        return instance;
+        return hybridService.updateHybridCube(request.getHybrid(), request.getProject(), request.getModel(), request.getCubes());
     }
 
     @RequestMapping(value = "", method = RequestMethod.DELETE, produces = { "application/json" })
@@ -72,13 +70,13 @@ public class HybridController extends BasicController {
 
     @RequestMapping(value = "", method = RequestMethod.GET, produces = { "application/json" })
     @ResponseBody
-    public Collection<HybridInstance> list(@RequestParam(required = false) String project, @RequestParam(required = false) String model) {
+    public Collection<HybridRespone> list(@RequestParam(required = false) String project, @RequestParam(required = false) String model) {
         return hybridService.listHybrids(project, model);
     }
 
     @RequestMapping(value = "{hybrid}", method = RequestMethod.GET, produces = { "application/json" })
     @ResponseBody
-    public HybridInstance get(@PathVariable String hybrid) {
+    public HybridRespone get(@PathVariable String hybrid) {
         return hybridService.getHybridInstance(hybrid);
     }
 

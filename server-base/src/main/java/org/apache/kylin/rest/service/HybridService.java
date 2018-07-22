@@ -28,6 +28,7 @@ import org.apache.kylin.metadata.project.ProjectInstance;
 import org.apache.kylin.metadata.project.RealizationEntry;
 import org.apache.kylin.metadata.realization.RealizationType;
 import org.apache.kylin.rest.job.HybridCubeCLI;
+import org.apache.kylin.rest.response.HybridRespone;
 import org.apache.kylin.rest.util.AclEvaluate;
 import org.apache.kylin.storage.hybrid.HybridInstance;
 import org.slf4j.Logger;
@@ -43,7 +44,7 @@ public class HybridService extends BasicService {
     @Autowired
     private AclEvaluate aclEvaluate;
 
-    public HybridInstance createHybridCube(String hybridName, String projectName, String modelName,
+    public HybridRespone createHybridCube(String hybridName, String projectName, String modelName,
             String[] cubeNames) {
         aclEvaluate.checkProjectWritePermission(projectName);
         List<String> args = new ArrayList<String>();
@@ -66,7 +67,7 @@ public class HybridService extends BasicService {
         return getHybridInstance(hybridName);
     }
 
-    public HybridInstance updateHybridCube(String hybridName, String projectName, String modelName,
+    public HybridRespone updateHybridCube(String hybridName, String projectName, String modelName,
             String[] cubeNames) {
         aclEvaluate.checkProjectWritePermission(projectName);
         List<String> args = new ArrayList<String>();
@@ -108,13 +109,14 @@ public class HybridService extends BasicService {
         }
     }
 
-    public HybridInstance getHybridInstance(String hybridName) {
+    public HybridRespone getHybridInstance(String hybridName) {
         HybridInstance hybridInstance = getHybridManager().getHybridInstance(hybridName);
-        return hybridInstance;
+        DataModelDesc modelDesc = hybridInstance.getModel();
+        return new HybridRespone(modelDesc.getProject(), modelDesc.getName(), hybridInstance);
     }
 
-    public List<HybridInstance> listHybrids(final String projectName, final String modelName) {
-        List<HybridInstance> allHybrids = new ArrayList<HybridInstance>();
+    public List<HybridRespone> listHybrids(final String projectName, final String modelName) {
+        List<HybridRespone> allHybrids = new ArrayList<HybridRespone>();
         if (StringUtils.isEmpty(projectName)) {
             List<ProjectInstance> allProjectInstances = getProjectManager().listAllProjects();
             List<ProjectInstance> readableProjects = new ArrayList<ProjectInstance>();
@@ -133,7 +135,8 @@ public class HybridService extends BasicService {
                 if (realizationEntries != null) {
                     for (RealizationEntry entry : realizationEntries) {
                         HybridInstance instance = getHybridManager().getHybridInstance(entry.getRealization());
-                        allHybrids.add(instance);
+                        DataModelDesc modelDesc = instance.getModel();
+                        allHybrids.add(new HybridRespone(modelDesc.getProject(), modelDesc.getName(), instance));
                     }
                 }
             }
@@ -144,7 +147,8 @@ public class HybridService extends BasicService {
             if (realizationEntries != null) {
                 for (RealizationEntry entry : realizationEntries) {
                     HybridInstance instance = getHybridManager().getHybridInstance(entry.getRealization());
-                    allHybrids.add(instance);
+                    DataModelDesc modelDesc = instance.getModel();
+                    allHybrids.add(new HybridRespone(projectName, modelDesc.getName(), instance));
                 }
             }
         }
@@ -153,13 +157,13 @@ public class HybridService extends BasicService {
             return allHybrids;
         } else {
             DataModelDesc model = getDataModelManager().getDataModelDesc(modelName);
-            List<HybridInstance> hybridsInModel = new ArrayList<HybridInstance>();
+            List<HybridRespone> hybridsInModel = new ArrayList<HybridRespone>();
             if (model == null)
                 return hybridsInModel;
 
-            for (HybridInstance hybridInstance : allHybrids) {
+            for (HybridRespone hybridRespone : allHybrids) {
                 boolean hybridInModel = false;
-                for (RealizationEntry entry : hybridInstance.getRealizationEntries()) {
+                for (RealizationEntry entry : hybridRespone.getHybridInstance().getRealizationEntries()) {
                     CubeDesc cubeDesc = getCubeDescManager().getCubeDesc(entry.getRealization());
                     if (cubeDesc != null && model.getName().equalsIgnoreCase(cubeDesc.getModel().getName())) {
                         hybridInModel = true;
@@ -167,7 +171,7 @@ public class HybridService extends BasicService {
                     }
                 }
                 if (hybridInModel) {
-                    hybridsInModel.add(hybridInstance);
+                    hybridsInModel.add(hybridRespone);
                 }
             }
             return hybridsInModel;
