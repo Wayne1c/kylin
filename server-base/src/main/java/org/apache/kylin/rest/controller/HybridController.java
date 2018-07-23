@@ -61,10 +61,10 @@ public class HybridController extends BasicController {
 
     @RequestMapping(value = "", method = RequestMethod.DELETE, produces = { "application/json" })
     @ResponseBody
-    public void delete(@RequestBody HybridRequest request) {
-        checkRequiredArg("hybrid", request.getHybrid());
-        checkRequiredArg("project", request.getProject());
-        hybridService.deleteHybridCube(request.getHybrid(), request.getProject());
+    public void delete(String hybrid, String project) {
+        checkRequiredArg("hybrid", hybrid);
+        checkRequiredArg("project", project);
+        hybridService.deleteHybridCube(hybrid, project);
     }
 
     @RequestMapping(value = "", method = RequestMethod.GET, produces = { "application/json" })

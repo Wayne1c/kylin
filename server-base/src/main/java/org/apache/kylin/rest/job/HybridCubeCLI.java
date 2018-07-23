@@ -59,9 +59,9 @@ public class HybridCubeCLI extends AbstractApplication {
 
     private static final Option OPTION_HYBRID_NAME = OptionBuilder.withArgName("name").hasArg().isRequired(true).withDescription("HybridCube name").create("name");
 
-    private static final Option OPTION_PROJECT = OptionBuilder.withArgName("project").hasArg().isRequired(true).withDescription("the target project for the hybrid cube").create("project");
+    private static final Option OPTION_PROJECT = OptionBuilder.withArgName("project").hasArg().isRequired(false).withDescription("the target project for the hybrid cube").create("project");
 
-    private static final Option OPTION_MODEL = OptionBuilder.withArgName("model").hasArg().isRequired(true).withDescription("the target model for the hybrid cube").create("model");
+    private static final Option OPTION_MODEL = OptionBuilder.withArgName("model").hasArg().isRequired(false).withDescription("the target model for the hybrid cube").create("model");
 
     private static final Option OPTION_CUBES = OptionBuilder.withArgName("cubes").hasArg().isRequired(false).withDescription("the cubes used in HybridCube, seperated by comma, empty if to delete HybridCube").create("cubes");
 
