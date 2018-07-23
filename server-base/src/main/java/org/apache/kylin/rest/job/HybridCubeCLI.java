@@ -105,6 +105,18 @@ public class HybridCubeCLI extends AbstractApplication {
         String projectName = optionsHelper.getOptionValue(OPTION_PROJECT);
         String modelName = optionsHelper.getOptionValue(OPTION_MODEL);
         String cubeNamesStr = optionsHelper.getOptionValue(OPTION_CUBES);
+
+        HybridInstance hybridInstance = hybridManager.getHybridInstance(hybridName);
+
+        if ("delete".equals(action)) {
+            if (hybridInstance == null) {
+                throw new RuntimeException("The Hybrid Cube doesn't exist, could not delete: " + hybridName);
+            }
+            // Delete the Hybrid
+            delete(hybridInstance);
+            return;
+        }
+
         String[] cubeNames = new String[] {};
         if (cubeNamesStr != null)
             cubeNames = cubeNamesStr.split(",");
@@ -129,7 +141,7 @@ public class HybridCubeCLI extends AbstractApplication {
             realizationEntries.add(RealizationEntry.create(RealizationType.CUBE, cube.getName()));
         }
 
-        HybridInstance hybridInstance = hybridManager.getHybridInstance(hybridName);
+
         if ("create".equals(action)) {
             if (hybridInstance != null) {
                 throw new RuntimeException("The Hybrid Cube does exist, could not create: " + hybridName);
@@ -142,12 +154,6 @@ public class HybridCubeCLI extends AbstractApplication {
             }
             // Update the Hybrid
             update(hybridInstance, realizationEntries, projectName, owner);
-        } else if ("delete".equals(action)) {
-            if (hybridInstance == null) {
-                throw new RuntimeException("The Hybrid Cube doesn't exist, could not delete: " + hybridName);
-            }
-            // Delete the Hybrid
-            delete(hybridInstance);
         }
 
     }

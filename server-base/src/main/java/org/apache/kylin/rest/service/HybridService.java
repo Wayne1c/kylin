@@ -90,15 +90,11 @@ public class HybridService extends BasicService {
         return getHybridInstance(hybridName);
     }
 
-    public void deleteHybridCube(String hybridName, String projectName, String modelName) {
+    public void deleteHybridCube(String hybridName, String projectName) {
         aclEvaluate.checkProjectWritePermission(projectName);
         List<String> args = new ArrayList<String>();
         args.add("-name");
         args.add(hybridName);
-        args.add("-project");
-        args.add(projectName);
-        args.add("-model");
-        args.add(modelName);
         args.add("-action");
         args.add("delete");
         try {
