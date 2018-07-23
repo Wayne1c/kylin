@@ -20,7 +20,7 @@
 
 KylinApp.controller('HybridCubeCtrl', function (
   $scope, $q, $location,
-  ProjectModel, hybridCubeManager, SweetAlert, HybridCubeService
+  ProjectModel, hybridCubeManager, SweetAlert, HybridCubeService, loadingRequest
 ) {
   $scope.projectModel = ProjectModel;
   $scope.hybridCubeManager = hybridCubeManager;

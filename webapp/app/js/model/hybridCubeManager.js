@@ -31,6 +31,14 @@ KylinApp.service('hybridCubeManager', function($q, HybridCubeService, ProjectMod
     var defer = $q.defer();
 
     HybridCubeService.list(queryParam, function(_hybridCubes) {
+      _hybridCubes = _hybridCubes.map(function(_hybridCube) {
+        var instance = _hybridCube.hybridInstance;
+        instance.project = _hybridCube.projectName;
+        instance.model = _hybridCube.modelName;
+
+        return instance;
+      });
+
       angular.forEach(_hybridCubes, function(hybridCube) {
         _this.hybridCubeNameList.push(hybridCube.name);
         // hybridCube.project = ProjectModel.getProjectByCubeModel(hybridCube.name);

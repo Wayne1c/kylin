@@ -20,7 +20,7 @@ KylinApp.factory('HybridCubeService', ['$resource', function ($resource, config)
     return $resource(Config.service.url + 'hybrids/:hybrid_name', {}, {
         list: { method: 'GET', params: {}, isArray: true },
         getByName: { method: 'GET', isArray: false },
-        // drop: {method: 'DELETE', params: {}, isArray: false},
+        drop: {method: 'DELETE', params: {}, isArray: false},
         // clone: {method: 'PUT', params: {action: 'clone'}, isArray: false},
         save: {method: 'POST', params: {}, isArray: false},
         update: {method: 'PUT', params: {}, isArray: false}
