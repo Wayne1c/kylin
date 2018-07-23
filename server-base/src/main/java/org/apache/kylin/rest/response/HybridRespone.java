@@ -22,6 +22,9 @@ import org.apache.kylin.storage.hybrid.HybridInstance;
 
 public class HybridRespone {
 
+    public static final String NO_PROJECT = "NO_PROJECT";
+    public static final String NO_MODEL = "NO_MODEL";
+
     private String projectName;
     private String modelName;
     private HybridInstance hybridInstance;

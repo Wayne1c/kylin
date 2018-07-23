@@ -136,7 +136,7 @@ public class HybridService extends BasicService {
                     for (RealizationEntry entry : realizationEntries) {
                         HybridInstance instance = getHybridManager().getHybridInstance(entry.getRealization());
                         DataModelDesc modelDesc = instance.getModel();
-                        allHybrids.add(new HybridRespone(modelDesc.getProject(), modelDesc.getName(), instance));
+                        allHybrids.add(new HybridRespone(modelDesc == null ? HybridRespone.NO_PROJECT : modelDesc.getProject(), modelDesc == null ? HybridRespone.NO_MODEL : modelDesc.getName(), instance));
                     }
                 }
             }
@@ -148,7 +148,7 @@ public class HybridService extends BasicService {
                 for (RealizationEntry entry : realizationEntries) {
                     HybridInstance instance = getHybridManager().getHybridInstance(entry.getRealization());
                     DataModelDesc modelDesc = instance.getModel();
-                    allHybrids.add(new HybridRespone(projectName, modelDesc.getName(), instance));
+                    allHybrids.add(new HybridRespone(projectName, modelDesc == null ? HybridRespone.NO_MODEL : modelDesc.getName(), instance));
                 }
             }
         }
