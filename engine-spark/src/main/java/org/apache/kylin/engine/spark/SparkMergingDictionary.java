@@ -24,8 +24,12 @@ import java.util.List;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.kylin.common.KylinConfig;
 import org.apache.kylin.common.util.AbstractApplication;
+import org.apache.kylin.common.util.HadoopUtil;
 import org.apache.kylin.common.util.OptionsHelper;
 import org.apache.kylin.cube.CubeDescManager;
 import org.apache.kylin.cube.CubeInstance;
@@ -42,9 +46,7 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.PairFunction;
-import org.apache.spark.api.java.function.VoidFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,7 +68,8 @@ public class SparkMergingDictionary extends AbstractApplication implements Seria
             .withDescription("HDFS metadata url").create("metaUrl");
     public static final Option OPTION_MERGE_SEGMENT_IDS = OptionBuilder.withArgName("segmentIds").hasArg()
             .isRequired(true).withDescription("Merging Cube Segment Ids").create("segmentIds");
-
+    public static final Option OPTION_OUTPUT_PATH = OptionBuilder.withArgName(BatchConstants.ARG_OUTPUT).hasArg()
+            .isRequired(true).withDescription("merged dictionary resource path").create(BatchConstants.ARG_OUTPUT);
     private Options options;
 
     public SparkMergingDictionary() {
@@ -75,6 +78,7 @@ public class SparkMergingDictionary extends AbstractApplication implements Seria
         options.addOption(OPTION_SEGMENT_ID);
         options.addOption(OPTION_META_URL);
         options.addOption(OPTION_MERGE_SEGMENT_IDS);
+        options.addOption(OPTION_OUTPUT_PATH);
     }
 
     @Override
@@ -88,11 +92,13 @@ public class SparkMergingDictionary extends AbstractApplication implements Seria
         final String segmentId = optionsHelper.getOptionValue(OPTION_SEGMENT_ID);
         final String metaUrl = optionsHelper.getOptionValue(OPTION_META_URL);
         final String segmentIds = optionsHelper.getOptionValue(OPTION_MERGE_SEGMENT_IDS);
+        final String outputPath = optionsHelper.getOptionValue(OPTION_OUTPUT_PATH);
+
         System.setProperty("HADOOP_USER_NAME", "root");
 
-        Class[] kryoClassArray = new Class[] { Class.forName("scala.reflect.ClassTag$$anon$1") };
+        Class[] kryoClassArray = new Class[] { Class.forName("scala.reflect.ClassTag$$anon$1"), Class.forName("scala.collection.mutable.WrappedArray$ofRef") };
 
-        SparkConf conf = new SparkConf().setAppName("Merge segments for cube:" + cubeName + ", segment " + segmentId);
+        SparkConf conf = new SparkConf().setAppName("Merge dictionary for cube:" + cubeName + ", segment " + segmentId);
         //serialization conf
         conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer");
         conf.set("spark.kryo.registrator", "org.apache.kylin.engine.spark.KylinKryoRegistrator");
@@ -102,72 +108,71 @@ public class SparkMergingDictionary extends AbstractApplication implements Seria
         KylinSparkJobListener jobListener = new KylinSparkJobListener();
         sc.sc().addSparkListener(jobListener);
 
+        HadoopUtil.deletePath(sc.hadoopConfiguration(), new Path(outputPath));
+
         final SerializableConfiguration sConf = new SerializableConfiguration(sc.hadoopConfiguration());
         final KylinConfig envConfig = AbstractHadoopJob.loadKylinConfigFromHdfs(sConf, metaUrl);
 
         final CubeInstance cubeInstance = CubeManager.getInstance(envConfig).getCube(cubeName);
         final CubeDesc cubeDesc = CubeDescManager.getInstance(envConfig).getCubeDesc(cubeInstance.getDescName());
-        final CubeSegment cubeSegment = cubeInstance.getSegmentById(segmentId);
-
         final List<CubeSegment> mergingSegments = getMergingSegments(cubeInstance, segmentIds.split(","));
-        final DictionaryManager dictMgr = DictionaryManager.getInstance(envConfig);
-        List<DictionaryInfo> dictInfos = Lists.newArrayList();
 
-        for (TblColRef col : cubeDesc.getAllColumnsNeedDictionaryBuilt()) {
-            logger.info("Merging fact table dictionary on : " + col);
-            for (CubeSegment segment : mergingSegments) {
-                logger.info("Including fact table dictionary of segment : " + segment);
-                if (segment.getDictResPath(col) != null) {
-                    DictionaryInfo dictInfo = dictMgr.getDictionaryInfo(segment.getDictResPath(col));
-                    if (dictInfo != null && !dictInfos.contains(dictInfo)) {
-                        dictInfos.add(dictInfo);
-                    } else {
-                        logger.warn("Failed to load DictionaryInfo from " + segment.getDictResPath(col));
-                    }
-                }
-            }
+        logger.info("Output path: {}", outputPath);
+
+        final TblColRef[] tblColRefs = cubeDesc.getAllColumnsNeedDictionaryBuilt().toArray(new TblColRef[0]);
+        int columnLength = tblColRefs.length;
+
+        if (columnLength > 0) {
+            List<Integer> indexs = Lists.newArrayListWithCapacity(columnLength);
+
+            for (int i = 0; i < columnLength; i++)
+                indexs.add(i);
+
+            JavaRDD<Integer> indexRDD = sc.parallelize(indexs, columnLength);
+
+            JavaPairRDD<Text, Text> colToDictPathRDD = indexRDD
+                    .mapToPair(new PairFunction<Integer, Text, Text>() {
+                        private volatile transient boolean initialized = false;
+                        DictionaryManager dictMgr;
+
+                        @Override
+                        public Tuple2<Text, Text> call(Integer index) throws Exception {
+                            if (initialized == false) {
+                                synchronized (SparkMergingDictionary.class) {
+                                    if (initialized == false) {
+                                        KylinConfig kylinConfig = AbstractHadoopJob.loadKylinConfigFromHdfs(sConf, metaUrl);
+                                        dictMgr = DictionaryManager.getInstance(kylinConfig);
+                                        initialized = true;
+                                    }
+                                }
+                            }
+
+                            TblColRef col = tblColRefs[index];
+                            List<DictionaryInfo> dictInfos = Lists.newArrayList();
+
+                            for (CubeSegment segment : mergingSegments) {
+                                if (segment.getDictResPath(col) != null) {
+                                    DictionaryInfo dictInfo = dictMgr.getDictionaryInfo(segment.getDictResPath(col));
+                                    if (dictInfo != null && !dictInfos.contains(dictInfo)) {
+                                        dictInfos.add(dictInfo);
+                                    }
+                                }
+                            }
+
+                            DictionaryInfo mergedDictInfo = dictMgr.mergeDictionary(dictInfos);
+
+                            String tblCol = col.getTable() + ":" + col.getName();
+                            String dictInfoPath = mergedDictInfo == null ? "" : mergedDictInfo.getResourcePath();
+
+                            return new Tuple2<>(new Text(tblCol), new Text(dictInfoPath));
+                        }
+                    });
+
+            colToDictPathRDD.coalesce(1, false).saveAsNewAPIHadoopFile(outputPath, Text.class, Text.class,
+                    SequenceFileOutputFormat.class);
         }
 
-        final JavaRDD<DictionaryInfo> dictInfoRDD = sc.parallelize(dictInfos);
-
-        JavaPairRDD<String, DictionaryInfo> colToDictInfoRDD = dictInfoRDD
-                .mapToPair(new PairFunction<DictionaryInfo, String, DictionaryInfo>() {
-                    @Override
-                    public Tuple2<String, DictionaryInfo> call(DictionaryInfo dictionaryInfo) throws Exception {
-                        return new Tuple2<>(dictionaryInfo.getSourceTable() + "," + dictionaryInfo.getSourceColumn(),
-                                dictionaryInfo);
-                    }
-                });
-
-        JavaPairRDD<String, Iterable<DictionaryInfo>> aggredDictInfoRDD = colToDictInfoRDD.groupByKey();
-
-        JavaRDD<DictionaryInfo> mergedDictInfoRDD = aggredDictInfoRDD
-                .map(new Function<Tuple2<String, Iterable<DictionaryInfo>>, DictionaryInfo>() {
-                    @Override
-                    public DictionaryInfo call(Tuple2<String, Iterable<DictionaryInfo>> tuple) throws Exception {
-                        DictionaryInfo mergedDictInfo = dictMgr.mergeDictionary(Lists.newArrayList(tuple._2));
-                        if (mergedDictInfo != null) {
-                            String soruceTable = tuple._1.split(",")[0];
-                            String sourceColumn = tuple._1.split(",")[1];
-                            cubeSegment.putDictResPath(cubeDesc.findColumnRef(soruceTable, sourceColumn),
-                                    mergedDictInfo.getResourcePath());
-                            return mergedDictInfo;
-                        }
-                        return new DictionaryInfo();
-                    }
-                });
-
-        mergedDictInfoRDD.foreach(new VoidFunction<DictionaryInfo>() {
-            @Override
-            public void call(DictionaryInfo dictionaryInfo) throws Exception {
-                String path = dictionaryInfo.getResourcePath();
-                logger.info("Saving dictionary at " + path);
-            }
-        });
-
-        //        CubeUpdate update = new CubeUpdate(cubeInstance);
-        //        update.setToUpdateSegs(cubeSegment);
-        //        CubeManager.getInstance(envConfig).updateCube(update);
+        HadoopUtil.deleteHDFSMeta(metaUrl);
     }
 
     private List<CubeSegment> getMergingSegments(CubeInstance cube, String[] segmentIds) {

@@ -55,7 +55,8 @@ public class SparkBatchMergeJobBuilder2 extends JobBuilderSupport {
         final String jobId = result.getId();
 
         final List<CubeSegment> mergingSegments = cubeSegment.getCubeInstance().getMergingSegments(cubeSegment);
-        Preconditions.checkState(mergingSegments.size() > 1, "there should be more than 2 segments to merge, target segment " + cubeSegment);
+        Preconditions.checkState(mergingSegments.size() > 1,
+                "there should be more than 2 segments to merge, target segment " + cubeSegment);
         final List<String> mergingSegmentIds = Lists.newArrayList();
         for (CubeSegment merging : mergingSegments) {
             mergingSegmentIds.add(merging.getUuid());
@@ -65,13 +66,13 @@ public class SparkBatchMergeJobBuilder2 extends JobBuilderSupport {
         inputSide.addStepPhase1_MergeDictionary(result);
         result.addTask(createMergeStatisticsStep(cubeSegment, mergingSegmentIds, getStatisticsPath(jobId)));
         result.addTask(createMergeDictionaryStep(seg, jobId, mergingSegmentIds));
-        outputSide.addStepPhase1_MergeDictionary(result);
+        // outputSide.addStepPhase1_MergeDictionary(result);
 
         // merge cube
-        result.addTask(createMergeCuboidDataStep(cubeSegment, mergingSegments, jobId));
+        // result.addTask(createMergeCuboidDataStep(cubeSegment, mergingSegments, jobId));
 
         // Phase 2: Merge Cube Files
-        outputSide.addStepPhase2_BuildCube(seg, mergingSegments, result);
+        // outputSide.addStepPhase2_BuildCube(seg, mergingSegments, result);
 
         // Phase 3: Update Metadata & Cleanup
         result.addTask(createUpdateCubeInfoAfterMergeStep(mergingSegmentIds, jobId));
@@ -80,14 +81,17 @@ public class SparkBatchMergeJobBuilder2 extends JobBuilderSupport {
         return result;
     }
 
-    public SparkExecutable createMergeDictionaryStep(CubeSegment seg, String jobID, List<String> mergingSegmentIds){
+    public SparkExecutable createMergeDictionaryStep(CubeSegment seg, String jobID, List<String> mergingSegmentIds) {
         final SparkExecutable sparkExecutable = new SparkExecutable();
+        String outputPath = getDictInfoPath(jobID);
         sparkExecutable.setClassName(SparkMergingDictionary.class.getName());
         sparkExecutable.setParam(SparkMergingDictionary.OPTION_CUBE_NAME.getOpt(), seg.getRealization().getName());
         sparkExecutable.setParam(SparkMergingDictionary.OPTION_SEGMENT_ID.getOpt(), seg.getUuid());
-        sparkExecutable.setParam(SparkMergingDictionary.OPTION_META_URL.getOpt(), getSegmentMetadataUrl(seg.getConfig(), jobID));
-        sparkExecutable.setParam(SparkMergingDictionary.OPTION_MERGE_SEGMENT_IDS.getOpt(), StringUtil.join(mergingSegmentIds, ","));
-
+        sparkExecutable.setParam(SparkMergingDictionary.OPTION_META_URL.getOpt(),
+                getSegmentMetadataUrl(seg.getConfig(), jobID));
+        sparkExecutable.setParam(SparkMergingDictionary.OPTION_MERGE_SEGMENT_IDS.getOpt(),
+                StringUtil.join(mergingSegmentIds, ","));
+        sparkExecutable.setParam(SparkCubingMerge.OPTION_OUTPUT_PATH.getOpt(), outputPath);
         sparkExecutable.setJobId(jobID);
         sparkExecutable.setName(ExecutableConstants.STEP_NAME_MERGE_DICTIONARY);
 
