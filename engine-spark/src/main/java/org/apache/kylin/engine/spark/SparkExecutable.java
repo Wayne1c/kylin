@@ -136,13 +136,15 @@ public class SparkExecutable extends AbstractExecutable {
         String segmentID = this.getParam(SparkCubingByLayer.OPTION_SEGMENT_ID.getOpt());
         CubeSegment segment = cube.getSegmentById(segmentID);
         Segments<CubeSegment> mergingSeg = cube.getMergingSegments(segment);
+        boolean includeMergingStats = this.getParam(SparkMergingDictionary.OPTION_INCLUDE_MERGING_STATS.getOpt()) == null ? true : Boolean.valueOf(SparkMergingDictionary.OPTION_INCLUDE_MERGING_STATS.getOpt());
 
         try {
             if (mergingSeg == null || mergingSeg.size() == 0) {
                 attachSegmentMetadataWithDict(segment);
             } else {
                 List<CubeSegment> allRelatedSegs = new ArrayList();
-                allRelatedSegs.add(segment);
+                if (includeMergingStats)
+                    allRelatedSegs.add(segment);
                 allRelatedSegs.addAll(mergingSeg);
                 attachSegmentsMetadataWithDict(allRelatedSegs);
             }
@@ -216,6 +218,8 @@ public class SparkExecutable extends AbstractExecutable {
             dumpList.add(segment.getStatisticsResourcePath());
         }
         dumpAndUploadKylinPropsAndMetadata(dumpList, (KylinConfigExt) segments.get(0).getConfig());
+
+        int i = 0;
     }
 
     private void dumpAndUploadKylinPropsAndMetadata(Set<String> dumpList, KylinConfigExt kylinConfig)

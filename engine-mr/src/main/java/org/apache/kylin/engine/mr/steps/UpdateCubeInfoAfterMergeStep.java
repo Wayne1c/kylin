@@ -22,30 +22,17 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.lang.StringUtils;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.PathFilter;
-import org.apache.hadoop.io.IOUtils;
-import org.apache.hadoop.io.SequenceFile;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.util.ReflectionUtils;
-import org.apache.kylin.common.util.HadoopUtil;
 import org.apache.kylin.cube.CubeInstance;
 import org.apache.kylin.cube.CubeManager;
 import org.apache.kylin.cube.CubeSegment;
 import org.apache.kylin.cube.DimensionRangeInfo;
 import org.apache.kylin.engine.mr.CubingJob;
-import org.apache.kylin.engine.mr.common.BatchConstants;
 import org.apache.kylin.engine.mr.exception.SegmentNotFoundException;
 import org.apache.kylin.job.exception.ExecuteException;
 import org.apache.kylin.job.execution.AbstractExecutable;
 import org.apache.kylin.job.execution.ExecutableContext;
 import org.apache.kylin.job.execution.ExecuteResult;
 import org.apache.kylin.metadata.model.SegmentRange;
-import org.apache.kylin.metadata.model.TblColRef;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,12 +45,9 @@ public class UpdateCubeInfoAfterMergeStep extends AbstractExecutable {
     }
 
     @Override
-    @SuppressWarnings("deprecation")
     protected ExecuteResult doWork(ExecutableContext context) throws ExecuteException {
         final CubeManager cubeManager = CubeManager.getInstance(context.getConfig());
-        final CubeInstance cube = cubeManager.getCube(CubingExecutableUtil.getCubeName(this.getParams()))
-                .latestCopyForWrite();
-        final String dictInfoPath = this.getParams().get(BatchConstants.ARG_DICT_PATH);
+        final CubeInstance cube = cubeManager.getCube(CubingExecutableUtil.getCubeName(this.getParams())).latestCopyForWrite();
 
         CubeSegment mergedSegment = cube.getSegmentById(CubingExecutableUtil.getSegmentId(this.getParams()));
         if (mergedSegment == null) {
@@ -73,44 +57,6 @@ public class UpdateCubeInfoAfterMergeStep extends AbstractExecutable {
 
         CubingJob cubingJob = (CubingJob) getManager().getJob(CubingExecutableUtil.getCubingJobId(this.getParams()));
         long cubeSizeBytes = cubingJob.findCubeSizeBytes();
-
-        // update segment dict info
-        SequenceFile.Reader reader = null;
-        try {
-            FileSystem fs = HadoopUtil.getWorkingFileSystem();
-            Configuration conf = HadoopUtil.getCurrentConfiguration();
-            FileStatus[] fileStatuss = fs.listStatus(new Path(dictInfoPath), new PathFilter() {
-                @Override
-                public boolean accept(Path path) {
-                    return path.getName().startsWith("part");
-                }
-            });
-
-            Path filePath;
-            for (FileStatus fileStatus : fileStatuss){
-                filePath = fileStatus.getPath();
-
-                reader = new SequenceFile.Reader(fs, filePath, conf);
-                Text key = (Text) ReflectionUtils.newInstance(reader.getKeyClass(), conf);
-                Text value = (Text) ReflectionUtils.newInstance(reader.getValueClass(), conf);
-
-                String tblCol;
-                String dictInfoResource;
-                while (reader.next(key, value)) {
-                    tblCol = key.toString();
-                    dictInfoResource = value.toString();
-                    if (StringUtils.isNotEmpty(dictInfoResource)) {
-                        TblColRef tblColRef = cube.getDescriptor().findColumnRef(tblCol.split(":")[0], tblCol.split(":")[1]);
-                        mergedSegment.putDictResPath(tblColRef, dictInfoResource);
-                    }
-                }
-            }
-        } catch (IOException e) {
-            logger.error("fail to update cube after merge", e);
-            return ExecuteResult.createError(e);
-        } finally {
-            IOUtils.closeStream(reader);
-        }
 
         // collect source statistics
         List<String> mergingSegmentIds = CubingExecutableUtil.getMergingSegmentIds(this.getParams());

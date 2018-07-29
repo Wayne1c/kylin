@@ -19,10 +19,14 @@
 package org.apache.kylin.engine.mr;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.kylin.common.KylinConfig;
+import org.apache.kylin.common.StorageURL;
 import org.apache.kylin.cube.CubeSegment;
 import org.apache.kylin.cube.cuboid.CuboidModeEnum;
 import org.apache.kylin.cube.model.CubeDesc;
@@ -39,6 +43,7 @@ import org.apache.kylin.engine.mr.steps.SaveStatisticsStep;
 import org.apache.kylin.engine.mr.steps.UHCDictionaryJob;
 import org.apache.kylin.engine.mr.steps.UpdateCubeInfoAfterBuildStep;
 import org.apache.kylin.engine.mr.steps.UpdateCubeInfoAfterMergeStep;
+import org.apache.kylin.engine.mr.steps.UpdateDictionaryStep;
 import org.apache.kylin.job.constant.ExecutableConstants;
 import org.apache.kylin.job.engine.JobEngineConfig;
 import org.apache.kylin.metadata.model.TblColRef;
@@ -98,6 +103,22 @@ public class JobBuilderSupport {
         CubingExecutableUtil.setSegmentId(seg.getUuid(), result.getParams());
         CubingExecutableUtil.setMergingSegmentIds(mergingSegmentIds, result.getParams());
         CubingExecutableUtil.setMergedStatisticsPath(mergedStatisticsFolder, result.getParams());
+
+        return result;
+    }
+
+    public UpdateDictionaryStep createUpdateDictionaryStep(CubeSegment seg, String jobId, List<String> mergingSegmentIds) {
+        UpdateDictionaryStep result = new UpdateDictionaryStep();
+        result.setName(ExecutableConstants.STEP_NAME_MERGE_STATISTICS);
+
+        CubingExecutableUtil.setCubeName(seg.getRealization().getName(), result.getParams());
+        CubingExecutableUtil.setSegmentId(seg.getUuid(), result.getParams());
+        CubingExecutableUtil.setMergingSegmentIds(mergingSegmentIds, result.getParams());
+
+        // merged dict info path
+        result.getParams().put(BatchConstants.ARG_DICT_PATH, getDictInfoPath(jobId));
+        // metadata url
+        result.getParams().put(BatchConstants.ARG_META_URL, getSegmentMetadataUrl(seg.getConfig(), jobId));
 
         return result;
     }
@@ -196,8 +217,6 @@ public class JobBuilderSupport {
         CubingExecutableUtil.setSegmentId(seg.getUuid(), result.getParams());
         CubingExecutableUtil.setCubingJobId(jobId, result.getParams());
         CubingExecutableUtil.setMergingSegmentIds(mergingSegmentIds, result.getParams());
-        // merged dict info path
-        result.getParams().put(BatchConstants.ARG_DICT_PATH, getDictInfoPath(jobId));
 
         return result;
     }
@@ -285,7 +304,7 @@ public class JobBuilderSupport {
     }
 
     public String getDictInfoPath(String jobId) {
-        return getDictRootPath(jobId) + "/info";
+        return getRealizationRootPath(jobId) + "/dict_info";
     }
 
     public String getOptimizationRootPath(String jobId) {
@@ -347,5 +366,11 @@ public class JobBuilderSupport {
         } else {
             throw new IllegalStateException("Can not extract job ID from file path : " + path);
         }
+    }
+
+    public String getSegmentMetadataUrl(KylinConfig kylinConfig, String jobId) {
+        Map<String, String> param = new HashMap<>();
+        param.put("path", getDumpMetadataPath(jobId));
+        return new StorageURL(kylinConfig.getMetadataUrl().getIdentifier(), "hdfs", param).toString();
     }
 }
