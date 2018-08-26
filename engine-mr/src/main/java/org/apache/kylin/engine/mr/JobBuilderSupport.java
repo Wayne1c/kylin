@@ -311,6 +311,10 @@ public class JobBuilderSupport {
         return getOptimizationRootPath(jobId) + "/cuboid/";
     }
 
+    public String getCounterOuputPath(String jobId) {
+        return getRealizationRootPath(jobId) + "/counter";
+    }
+
     // ============================================================================
     // static methods also shared by other job flow participant
     // ----------------------------------------------------------------------------

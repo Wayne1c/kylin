@@ -117,6 +117,8 @@ public class SparkCubingByLayer extends AbstractApplication implements Serializa
         String segmentId = optionsHelper.getOptionValue(OPTION_SEGMENT_ID);
         String outputPath = optionsHelper.getOptionValue(OPTION_OUTPUT_PATH);
 
+        //System.setProperty("HADOOP_USER_NAME", "root");
+
         Class[] kryoClassArray = new Class[] { Class.forName("scala.reflect.ClassTag$$anon$1") };
 
         SparkConf conf = new SparkConf().setAppName("Cubing for:" + cubeName + " segment " + segmentId);

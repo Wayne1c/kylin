@@ -118,6 +118,8 @@ public class SparkCubeHFile extends AbstractApplication implements Serializable 
         final String outputPath = optionsHelper.getOptionValue(OPTION_OUTPUT_PATH);
         final Path partitionFilePath = new Path(optionsHelper.getOptionValue(OPTION_PARTITION_FILE_PATH));
 
+        //System.setProperty("HADOOP_USER_NAME", "root");
+
         Class[] kryoClassArray = new Class[] { Class.forName("scala.reflect.ClassTag$$anon$1"), KeyValueCreator.class,
                 KeyValue.class, RowKeyWritable.class };
 
