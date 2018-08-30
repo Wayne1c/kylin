@@ -17,11 +17,14 @@
 */
 package org.apache.kylin.engine.spark;
 
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.OptionBuilder;
@@ -40,9 +43,15 @@ import org.apache.kylin.cube.CubeSegment;
 import org.apache.kylin.cube.common.RowKeySplitter;
 import org.apache.kylin.cube.cuboid.Cuboid;
 import org.apache.kylin.cube.kv.AbstractRowKeyEncoder;
+import org.apache.kylin.cube.kv.RowKeyDecoder;
 import org.apache.kylin.cube.kv.RowKeyEncoderProvider;
 import org.apache.kylin.cube.model.CubeDesc;
 import org.apache.kylin.cube.model.CubeJoinedFlatTableEnrich;
+import org.apache.kylin.dimension.AbstractDateDimEnc;
+import org.apache.kylin.dimension.DimensionEncoding;
+import org.apache.kylin.dimension.FixedLenDimEnc;
+import org.apache.kylin.dimension.FixedLenHexDimEnc;
+import org.apache.kylin.dimension.IDimensionEncodingMap;
 import org.apache.kylin.engine.EngineFactory;
 import org.apache.kylin.engine.mr.BatchCubingJobBuilder2;
 import org.apache.kylin.engine.mr.IMROutput2;
@@ -57,17 +66,37 @@ import org.apache.kylin.job.JoinedFlatTable;
 import org.apache.kylin.measure.BufferedMeasureCodec;
 import org.apache.kylin.measure.MeasureAggregators;
 import org.apache.kylin.measure.MeasureIngester;
+import org.apache.kylin.measure.MeasureType;
+import org.apache.kylin.measure.basic.BasicMeasureType;
+import org.apache.kylin.measure.basic.BigDecimalIngester;
+import org.apache.kylin.measure.basic.DoubleIngester;
+import org.apache.kylin.measure.basic.LongIngester;
+import org.apache.kylin.measure.extendedcolumn.ExtendedColumnMeasureType;
+import org.apache.kylin.measure.raw.RawMeasureType;
 import org.apache.kylin.metadata.model.MeasureDesc;
+import org.apache.kylin.metadata.model.TblColRef;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
+import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.api.java.function.PairFunction;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.RowFactory;
+import org.apache.spark.sql.SQLContext;
+import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.StructField;
+import org.apache.spark.sql.types.StructType;
 import org.apache.spark.storage.StorageLevel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 import scala.Tuple2;
 
@@ -117,7 +146,13 @@ public class SparkCubingByLayer extends AbstractApplication implements Serializa
         String segmentId = optionsHelper.getOptionValue(OPTION_SEGMENT_ID);
         String outputPath = optionsHelper.getOptionValue(OPTION_OUTPUT_PATH);
 
-        Class[] kryoClassArray = new Class[] { Class.forName("scala.reflect.ClassTag$$anon$1") };
+        System.setProperty("HADOOP_USER_NAME", "root");
+
+        Class[] kryoClassArray = new Class[] { Class.forName("scala.reflect.ClassTag$$anon$1"),
+                Class.forName("org.apache.spark.internal.io.FileCommitProtocol$TaskCommitMessage"),
+                Class.forName("scala.collection.immutable.Set$EmptySet$"),
+                Class.forName("scala.collection.mutable.WrappedArray$ofRef"),
+                Class.forName("org.apache.spark.sql.types.StructType")};
 
         SparkConf conf = new SparkConf().setAppName("Cubing for:" + cubeName + " segment " + segmentId);
         //serialization conf
@@ -136,10 +171,8 @@ public class SparkCubingByLayer extends AbstractApplication implements Serializa
         final CubeInstance cubeInstance = CubeManager.getInstance(envConfig).getCube(cubeName);
         final CubeDesc cubeDesc = cubeInstance.getDescriptor();
         final CubeSegment cubeSegment = cubeInstance.getSegmentById(segmentId);
-
         logger.info("RDD input path: {}", inputPath);
         logger.info("RDD Output path: {}", outputPath);
-
         final Job job = Job.getInstance(sConf.get());
         SparkUtil.setHadoopConfForCuboid(job, cubeSegment, metaUrl);
 
@@ -160,53 +193,228 @@ public class SparkCubingByLayer extends AbstractApplication implements Serializa
         }
         logger.info("All measure are normal (agg on all cuboids) ? : " + allNormalMeasure);
         StorageLevel storageLevel = StorageLevel.fromString(envConfig.getSparkStorageLevel());
-
         boolean isSequenceFile = JoinedFlatTable.SEQUENCEFILE.equalsIgnoreCase(envConfig.getFlatTableStorageFormat());
-
         final JavaPairRDD<ByteArray, Object[]> encodedBaseRDD = SparkUtil.hiveRecordInputRDD(isSequenceFile, sc, inputPath, hiveTable)
                 .mapToPair(new EncodeBaseCuboid(cubeName, segmentId, metaUrl, sConf));
-
         Long totalCount = 0L;
         if (envConfig.isSparkSanityCheckEnabled()) {
             totalCount = encodedBaseRDD.count();
         }
-
         final BaseCuboidReducerFunction2 baseCuboidReducerFunction = new BaseCuboidReducerFunction2(cubeName, metaUrl, sConf);
         BaseCuboidReducerFunction2 reducerFunction2 = baseCuboidReducerFunction;
         if (allNormalMeasure == false) {
             reducerFunction2 = new CuboidReducerFunction2(cubeName, metaUrl, sConf, needAggr);
         }
-
         final int totalLevels = cubeSegment.getCuboidScheduler().getBuildLevel();
         JavaPairRDD<ByteArray, Object[]>[] allRDDs = new JavaPairRDD[totalLevels + 1];
         int level = 0;
         int partition = SparkUtil.estimateLayerPartitionNum(level, cubeStatsReader, envConfig);
-
         // aggregate to calculate base cuboid
         allRDDs[0] = encodedBaseRDD.reduceByKey(baseCuboidReducerFunction, partition).persist(storageLevel);
 
-        saveToHDFS(allRDDs[0], metaUrl, cubeName, cubeSegment, outputPath, 0, job, envConfig);
-
-        PairFlatMapFunction flatMapFunction = new CuboidFlatMap(cubeName, segmentId, metaUrl, sConf);
-        // aggregate to ND cuboids
-        for (level = 1; level <= totalLevels; level++) {
-            partition = SparkUtil.estimateLayerPartitionNum(level, cubeStatsReader, envConfig);
-
-            allRDDs[level] = allRDDs[level - 1].flatMapToPair(flatMapFunction).reduceByKey(reducerFunction2, partition)
-                    .persist(storageLevel);
-            allRDDs[level - 1].unpersist();
-            if (envConfig.isSparkSanityCheckEnabled() == true) {
-                sanityCheck(allRDDs[level], totalCount, level, cubeStatsReader, countMeasureIndex);
-            }
-            saveToHDFS(allRDDs[level], metaUrl, cubeName, cubeSegment, outputPath, level, job, envConfig);
-        }
-        allRDDs[totalLevels].unpersist();
         logger.info("Finished on calculating all level cuboids.");
         logger.info("HDFS: Number of bytes written=" + jobListener.metrics.getBytesWritten());
         //HadoopUtil.deleteHDFSMeta(metaUrl);
+
+        SQLContext sqlContext = new SQLContext(sc);
+        final IDimensionEncodingMap dimEncMap = cubeSegment.getDimensionEncodingMap();
+
+        Cuboid baseCuboid = Cuboid.getBaseCuboid(cubeDesc);
+        List<TblColRef> colRefs = baseCuboid.getColumns();
+        List<StructField> structFields = Lists.newArrayListWithCapacity(colRefs.size());
+        structFields.add(DataTypes.createStructField("cuboid", DataTypes.LongType, true));
+
+        final Map<TblColRef, DataType> colType = Maps.newHashMap();
+
+        for (TblColRef colRef : colRefs) {
+            DataType dataType = DataTypes.IntegerType;
+            DimensionEncoding dimEnc = dimEncMap.get(colRef);
+
+            if (dimEnc instanceof AbstractDateDimEnc) {
+                dataType = DataTypes.LongType;
+            } else if (dimEnc instanceof FixedLenDimEnc || dimEnc instanceof FixedLenHexDimEnc) {
+                org.apache.kylin.metadata.datatype.DataType colDataType = colRef.getType();
+                if (colDataType.isNumberFamily() || colDataType.isDateTimeFamily()){
+                    dataType = DataTypes.LongType;
+                } else {
+                    // stringFamily && default
+                    dataType = DataTypes.StringType;
+                }
+            }
+
+            colType.put(colRef, dataType);
+            structFields.add(DataTypes.createStructField(colRef.getIdentity(), dataType, true));
+        }
+        // measure
+        MeasureIngester[] aggrIngesters = MeasureIngester.create(cubeDesc.getMeasures());
+
+        final Map<MeasureDesc, DataType> meaType = Maps.newHashMap();
+        for (int i = 0; i < cubeDesc.getMeasures().size(); i++) {
+            MeasureDesc measureDesc = cubeDesc.getMeasures().get(i);
+            org.apache.kylin.metadata.datatype.DataType meaDataType = measureDesc.getFunction().getReturnDataType();
+            DataType dataType = DataTypes.BinaryType;
+
+
+            MeasureType measureType = measureDesc.getFunction().getMeasureType();
+
+            if (measureType instanceof BasicMeasureType) {
+                MeasureIngester measureIngester = aggrIngesters[i];
+                if (measureIngester instanceof LongIngester) {
+                    dataType = DataTypes.LongType;
+                } else if (measureIngester instanceof DoubleIngester) {
+                    dataType = DataTypes.DoubleType;
+                } else if (measureIngester instanceof BigDecimalIngester) {
+                    dataType = DataTypes.createDecimalType(meaDataType.getPrecision(), meaDataType.getScale()).defaultConcreteType();
+                }
+            } else if (measureType instanceof RawMeasureType) {
+                dataType = DataTypes.createArrayType(DataTypes.createDecimalType(meaDataType.getPrecision(), meaDataType.getScale()).defaultConcreteType()).defaultConcreteType();
+            }
+
+            meaType.put(measureDesc, dataType);
+            structFields.add(DataTypes.createStructField(measureDesc.getName(), dataType, true));
+        }
+        printInfo(colType, meaType, dimEncMap);
+        StructType structType = DataTypes.createStructType(structFields);
+        JavaRDD<Row> rowRDD = allRDDs[0].map(new GenerateRowRDDFunction(cubeName, segmentId, metaUrl, sConf, colType, meaType));
+        Dataset<Row> dataset = sqlContext.createDataFrame(rowRDD, structType);
+        dataset.printSchema();
+        dataset.write().parquet(outputPath + "/parquet");
+        printResult(outputPath + "/parquet", sqlContext);
     }
 
+    private void printResult(String path, SQLContext sqlContext) {
+        Dataset<Row> dataset = sqlContext.parquetFile(path);
+        dataset.registerTempTable("test_parquet");
+        dataset = sqlContext.sql("select * from test_parquet");
 
+        List<String> result = dataset.javaRDD().map(new Function<Row, String>() {
+            public String call(Row row) {
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < row.length(); i++)
+                    sb.append(row.get(i)).append(",");
+                return sb.toString();
+            }
+        }).collect();
+
+        for (String s : result) {
+            logger.info(s);
+        }
+    }
+
+    private void printInfo(Map<TblColRef, DataType> colType, Map<MeasureDesc, DataType> meaType, IDimensionEncodingMap dimEncMap) {
+        for (Map.Entry<TblColRef, DataType> entry : colType.entrySet()) {
+            logger.info("colName:{}, colDataType:{}, parquetDataType:{}, dimensionEncoding:{}",
+                    entry.getKey().getIdentity(), entry.getKey().getDatatype(), entry.getValue().typeName(), dimEncMap.get(entry.getKey()).getClass().getName());
+        }
+
+        for (Map.Entry<MeasureDesc, DataType> entry : meaType.entrySet()) {
+            logger.info("meaName:{}, colDataType:{}, parquetDataType:{}",
+                    entry.getKey().getName(), entry.getKey().getFunction().getReturnType(), entry.getValue().typeName());
+        }
+    }
+
+    static class GenerateRowRDDFunction implements Function<Tuple2<ByteArray, Object[]>, Row> {
+        private volatile transient boolean initialized = false;
+        private String cubeName;
+        private String segmentId;
+        private String metaUrl;
+        private SerializableConfiguration conf;
+        private List<TblColRef> baseCuboidCols;
+        private List<MeasureDesc> measureDescs;
+        private Map<TblColRef, DataType> colType;
+        private Map<MeasureDesc, DataType> meaType;
+        private RowKeyDecoder decoder;
+
+        public GenerateRowRDDFunction(String cubeName, String segmentId, String metaurl, SerializableConfiguration conf,
+                                      Map<TblColRef, DataType> colType, Map<MeasureDesc, DataType> meaType) {
+            this.cubeName = cubeName;
+            this.segmentId = segmentId;
+            this.metaUrl = metaurl;
+            this.conf = conf;
+            this.colType = colType;
+            this.meaType = meaType;
+        }
+
+        private void init() {
+            KylinConfig kConfig = AbstractHadoopJob.loadKylinConfigFromHdfs(conf, metaUrl);
+            KylinConfig.setAndUnsetThreadLocalConfig(kConfig);
+            CubeInstance cubeInstance = CubeManager.getInstance(kConfig).getCube(cubeName);
+            CubeDesc cubeDesc = cubeInstance.getDescriptor();
+            CubeSegment cubeSegment = cubeInstance.getSegmentById(segmentId);
+            baseCuboidCols = Cuboid.getBaseCuboid(cubeDesc).getColumns();
+            measureDescs = cubeDesc.getMeasures();
+            decoder = new RowKeyDecoder(cubeSegment);
+        }
+
+        @Override
+        public Row call(Tuple2<ByteArray, Object[]> tuple) throws Exception {
+            if (initialized == false) {
+                synchronized (SparkCubingByLayer.class) {
+                    if (initialized == false){
+                        init();
+                    }
+                }
+            }
+
+            List<Object> rowValues = Lists.newArrayListWithCapacity(colType.size() + meaType.size() + 1);
+            long cuboid = decoder.decode(tuple._1.array());
+            rowValues.add(cuboid);
+
+            List<String> values = decoder.getValues();
+            List<TblColRef> colRefs = decoder.getColumns();
+
+            for (TblColRef colRef : baseCuboidCols) {
+                if (colRefs.contains(colRef)) {
+                    rowValues.add(parseColValue(values.get(colRefs.indexOf(colRef)), colType.get(colRef)));
+                } else {
+                    rowValues.add(null);
+                }
+            }
+
+            Object[] meaValues = tuple._2;
+
+            for (int i = 0; i < measureDescs.size(); i++) {
+
+                MeasureDesc measureDesc = measureDescs.get(i);
+                if (DataTypes.BinaryType.sameType(meaType.get(measureDesc))) {
+                    byte[] bytes;
+
+                    if (measureDesc.getFunction().getMeasureType() instanceof ExtendedColumnMeasureType) {
+                        bytes = ((ByteArray) meaValues[i]).toBytes();
+                    } else {
+                        try(ByteArrayOutputStream bos = new ByteArrayOutputStream(); ObjectOutputStream oos = new ObjectOutputStream(bos)) {
+                            oos.writeObject(meaValues[i]);
+                            oos.flush();
+                            bytes = bos.toByteArray();
+                        }
+                    }
+                    rowValues.add(bytes);
+                } else if (measureDesc.getFunction().getMeasureType() instanceof RawMeasureType) {
+                    List<ByteArray> list = (List<ByteArray>) meaValues[i];
+                    List<byte[]> bytesList = Lists.newArrayListWithCapacity(list.size());
+                    for (ByteArray byteArray : list) {
+                        bytesList.add(byteArray.toBytes());
+                    }
+                    rowValues.add(bytesList);
+                } else {
+                    rowValues.add(meaValues[i]);
+                }
+            }
+
+            return RowFactory.create(rowValues.toArray());
+        }
+
+        private Object parseColValue(String value, DataType dataType) {
+            if (DataTypes.IntegerType.sameType(dataType)){
+                return Integer.valueOf(value);
+            } else if (DataTypes.LongType.sameType(dataType)) {
+                return Long.valueOf(value);
+            } else {
+                return value;
+            }
+        }
+
+    }
 
     protected JavaPairRDD<ByteArray, Object[]> prepareOutput(JavaPairRDD<ByteArray, Object[]> rdd, KylinConfig config,
             CubeSegment segment, int level) {
