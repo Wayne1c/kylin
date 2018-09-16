@@ -1240,6 +1240,9 @@
     <module>core-metrics</module>
     <module>metrics-reporter-hive</module>
     <module>metrics-reporter-kafka</module>
+    <module>parquet-common</module>
+    <module>parquet-column</module>
+    <module>parquet-hadoop</module>
   </modules>
 
   <reporting>

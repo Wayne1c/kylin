@@ -34,18 +34,24 @@ import static org.apache.parquet.hadoop.TestUtils.enforceEmptyDir;
 import static org.apache.parquet.hadoop.metadata.CompressionCodecName.UNCOMPRESSED;
 import static org.apache.parquet.schema.MessageTypeParser.parseMessageType;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Callable;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.parquet.example.data.GroupFactory;
 import org.apache.parquet.hadoop.example.ExampleParquetWriter;
+import org.apache.parquet.internal.column.columnindex.ColumnIndex;
 import org.apache.parquet.schema.GroupType;
 import org.apache.parquet.schema.InvalidSchemaException;
-import org.apache.parquet.schema.Type;
+import org.apache.parquet.schema.OriginalType;
+import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Types;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -165,5 +171,79 @@ public class TestParquetWriter {
 
     Assert.assertFalse("Should not create a file when schema is rejected",
         file.exists());
+  }
+
+  @Test
+  public void testWrite() throws IOException {
+    System.setProperty("HADOOP_USER_NAME", "root");
+
+    MessageType schema = Types.buildMessage()
+            .required(PrimitiveType.PrimitiveTypeName.BINARY).as(OriginalType.UTF8).named("name")
+            .required(PrimitiveType.PrimitiveTypeName.INT32).named("age").named("Info");
+
+    GroupWriteSupport writeSupport = new GroupWriteSupport();
+
+    Configuration configuration = new Configuration();
+
+    writeSupport.setSchema(schema, configuration);
+
+    GroupFactory factory = new SimpleGroupFactory(schema);
+
+    Path path = new Path("file://///Users/chao.long/IdeaProjects/wayne/kylin/parquet-hadoop/src/main/java/org/apache/parquet/test.parquet");
+    FileSystem fileSystem = FileSystem.newInstance(configuration);
+    fileSystem.delete(path, true);
+
+    ParquetWriter<Group> writer = new ParquetWriter<Group>(path, configuration, writeSupport);
+
+    BufferedReader localReader = new BufferedReader(new FileReader("/Users/chao.long/IdeaProjects/wayne/kylin/parquet-hadoop/src/main/java/org/apache/parquet/test.txt"));
+
+    String line;
+    while ((line = localReader.readLine()) != null) {
+      String[] splited = line.split(",");
+      Group group = factory.newGroup()
+              .append("name", splited[0])
+              .append("age", Integer.valueOf(splited[1]));
+
+      writer.write(group);
+    }
+
+    writer.close();
+  }
+
+  @Test
+  public void testRead() throws IOException {
+    Path path = new Path("file://///Users/chao.long/IdeaProjects/wayne/kylin/parquet-hadoop/src/main/java/org/apache/parquet/test.parquet");
+
+    GroupReadSupport readSupport = new GroupReadSupport();
+    ParquetReader.Builder<Group> builder = ParquetReader.builder(readSupport, path);
+    ParquetReader<Group> reader = builder.build();
+
+    Group group;
+
+    while ((group = reader.read()) != null) {
+      System.out.println("name=" + group.getString("name", 0) + ", age=" + group.getInteger("age", 0));
+    }
+
+  }
+
+  @Test
+  public void testReadIndex() throws IOException {
+    Configuration configuration = new Configuration();
+
+    MessageType schema = Types.buildMessage()
+            .required(PrimitiveType.PrimitiveTypeName.BINARY).as(OriginalType.UTF8).named("name")
+            .required(PrimitiveType.PrimitiveTypeName.INT32).named("age").named("Info");
+
+
+    Path path = new Path("file://///Users/chao.long/IdeaProjects/wayne/kylin/parquet-hadoop/src/main/java/org/apache/parquet/test.parquet");
+    FileSystem fileSystem = FileSystem.newInstance(configuration);
+    ParquetMetadata footer = ParquetFileReader.readFooter(configuration, path, NO_FILTER);
+
+    ParquetFileReader reader = new ParquetFileReader(
+            configuration, footer.getFileMetaData(), path, footer.getBlocks(), schema.getColumns());
+
+    ColumnChunkMetaData column = footer.getBlocks().get(0).getColumns().get(1);
+    ColumnIndex columnIndex = reader.readColumnIndex(column);
+
   }
 }
