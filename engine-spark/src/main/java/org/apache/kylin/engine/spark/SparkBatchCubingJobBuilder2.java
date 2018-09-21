@@ -116,7 +116,7 @@ public class SparkBatchCubingJobBuilder2 extends JobBuilderSupport {
 
     protected void addLayerCubingSteps(final CubingJob result, final String jobId, final String cuboidRootPath) {
         final SparkExecutable sparkExecutable = new SparkExecutable();
-        sparkExecutable.setClassName(SparkCubingByLayer.class.getName());
+        sparkExecutable.setClassName(SparkCubingByLayerParquet.class.getName());
         configureSparkJob(seg, sparkExecutable, jobId, cuboidRootPath);
         result.addTask(sparkExecutable);
     }

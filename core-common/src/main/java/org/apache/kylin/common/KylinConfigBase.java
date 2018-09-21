@@ -1053,6 +1053,11 @@ abstract public class KylinConfigBase implements Serializable {
                 "org.apache.kylin.storage.hbase.cube.v2.CubeHBaseEndpointRPC");
     }
 
+    public String getSparkGTStorage() {
+        return getOptional("kylin.storage.columnar.gtstorage",
+                "org.apache.kylin.storage.parquet.cube.CubeSparkRPC");
+    }
+
     public int getHBaseScanCacheRows() {
         return Integer.parseInt(this.getOptional("kylin.storage.hbase.scan-cache-rows", "1024"));
     }
@@ -1241,7 +1246,7 @@ abstract public class KylinConfigBase implements Serializable {
     }
 
     public float getSparkRDDPartitionCutMB() {
-        return Float.valueOf(getOptional("kylin.engine.spark.rdd-partition-cut-mb", "10.0"));
+        return Float.valueOf(getOptional("kylin.engine.spark.rdd-partition-cut-mb", "1.0"));
     }
 
     public int getSparkMinPartition() {

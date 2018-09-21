@@ -129,6 +129,8 @@ public class DebugTomcat {
         webContext.addErrorPage(notFound);
         webContext.addWelcomeFile("index.html");
 
+        //LongRuningAPP.init();
+
         // tomcat start
         tomcat.start();
         tomcat.getServer().await();

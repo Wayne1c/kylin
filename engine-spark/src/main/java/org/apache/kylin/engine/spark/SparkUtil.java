@@ -113,7 +113,6 @@ public class SparkUtil {
         return partition;
     }
 
-
     public static int estimateTotalPartitionNum(CubeStatsReader statsReader, KylinConfig kylinConfig) {
         double totalSize = 0;
         for (double x: statsReader.getCuboidSizeMap().values()) {
