@@ -43,7 +43,7 @@
             <artifactId>parquet-common</artifactId>
             <version>1.10.1-SNAPSHOT</version>
             <scope>system</scope>
-            <systemPath>/Users/chao.long/IdeaProjects/jar/parquet-common-1.10.1-SNAPSHOT.jar</systemPath>
+            <systemPath>/usr/local/jar/parquet-common-1.10.1-SNAPSHOT.jar</systemPath>
         </dependency>
 
         <dependency>
@@ -51,7 +51,7 @@
             <artifactId>parquet-column</artifactId>
             <version>1.10.1-SNAPSHOT</version>
             <scope>system</scope>
-            <systemPath>/Users/chao.long/IdeaProjects/jar/parquet-column-1.10.1-SNAPSHOT.jar</systemPath>
+            <systemPath>/usr/local/jar/parquet-column-1.10.1-SNAPSHOT.jar</systemPath>
         </dependency>
 
         <dependency>
@@ -59,7 +59,7 @@
             <artifactId>parquet-hadoop</artifactId>
             <version>1.10.1-SNAPSHOT</version>
             <scope>system</scope>
-            <systemPath>/Users/chao.long/IdeaProjects/jar/parquet-hadoop-1.10.1-SNAPSHOT.jar</systemPath>
+            <systemPath>/usr/local/jar/parquet-hadoop-1.10.1-SNAPSHOT.jar</systemPath>
         </dependency>
 
         <dependency>
