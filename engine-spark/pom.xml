@@ -42,18 +42,24 @@
             <groupId>org.apache.parquet</groupId>
             <artifactId>parquet-common</artifactId>
             <version>1.10.1-SNAPSHOT</version>
+            <scope>system</scope>
+            <systemPath>/Users/chao.long/IdeaProjects/jar/parquet-common-1.10.1-SNAPSHOT.jar</systemPath>
         </dependency>
 
         <dependency>
             <groupId>org.apache.parquet</groupId>
             <artifactId>parquet-column</artifactId>
             <version>1.10.1-SNAPSHOT</version>
+            <scope>system</scope>
+            <systemPath>/Users/chao.long/IdeaProjects/jar/parquet-column-1.10.1-SNAPSHOT.jar</systemPath>
         </dependency>
 
         <dependency>
             <groupId>org.apache.parquet</groupId>
             <artifactId>parquet-hadoop</artifactId>
             <version>1.10.1-SNAPSHOT</version>
+            <scope>system</scope>
+            <systemPath>/Users/chao.long/IdeaProjects/jar/parquet-hadoop-1.10.1-SNAPSHOT.jar</systemPath>
         </dependency>
 
         <dependency>

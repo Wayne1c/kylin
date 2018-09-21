@@ -215,7 +215,7 @@ public class SparkCubingByLayerParquet extends SparkCubingByLayer {
 
         private int estimateCuboidPartitionNum(long cuboidId, CubeStatsReader cubeStatsReader, KylinConfig kylinConfig) {
             double cuboidSize = cubeStatsReader.estimateCuboidSize(cuboidId);
-            float rddCut = kylinConfig.getSparkRDDPartitionCutMB();
+            float rddCut = 0.1f;//kylinConfig.getSparkRDDPartitionCutMB();
             int partition = (int) (cuboidSize / rddCut);
             partition = Math.max(kylinConfig.getSparkMinPartition(), partition);
             partition = Math.min(kylinConfig.getSparkMaxPartition(), partition);
