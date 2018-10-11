@@ -346,6 +346,14 @@ public class JobBuilderSupport {
         return getRealizationRootPath(jobId) + "/counter";
     }
 
+    public String getParquetOutputPath(String jobId) {
+        return getRealizationRootPath(jobId) + "/parquet/";
+    }
+
+    public String getParquetOutputPath() {
+        return getParquetOutputPath(seg.getLastBuildJobID());
+    }
+
     // ============================================================================
     // static methods also shared by other job flow participant
     // ----------------------------------------------------------------------------

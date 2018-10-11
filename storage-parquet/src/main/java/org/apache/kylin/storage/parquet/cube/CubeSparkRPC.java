@@ -73,8 +73,6 @@ public class CubeSparkRPC implements IGTStorage {
 
         JobBuilderSupport jobBuilderSupport = new JobBuilderSupport(cubeSegment, "");
 
-        String cubooidRootPath = jobBuilderSupport.getCuboidRootPath();
-
         List<List<Long>> layeredCuboids = cubeSegment.getCuboidScheduler().getCuboidsByLayer();
         int level = 0;
         for (List<Long> levelCuboids : layeredCuboids) {
@@ -84,7 +82,9 @@ public class CubeSparkRPC implements IGTStorage {
             level++;
         }
 
-        String dataFolderName = JobBuilderSupport.getCuboidOutputPathsByLevel(cubooidRootPath, level) + "/" + cuboid.getId();
+        String dataFolderName;
+        String parquetRootPath = jobBuilderSupport.getParquetOutputPath();
+        dataFolderName = JobBuilderSupport.getCuboidOutputPathsByLevel(parquetRootPath, level) + "/" + cuboid.getId();
 
         builder.setGtScanRequest(scanRequest.toByteArray()).setGtScanRequestId(scanReqId)
                 .setKylinProperties(KylinConfig.getInstanceFromEnv().exportAllToString())
