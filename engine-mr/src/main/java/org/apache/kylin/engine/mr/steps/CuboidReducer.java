@@ -18,12 +18,7 @@
 
 package org.apache.kylin.engine.mr.steps;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.List;
-
 import com.google.common.collect.Lists;
-import java.util.Locale;
 import org.apache.hadoop.io.Text;
 import org.apache.kylin.common.KylinConfig;
 import org.apache.kylin.cube.CubeManager;
@@ -33,9 +28,17 @@ import org.apache.kylin.engine.mr.common.AbstractHadoopJob;
 import org.apache.kylin.engine.mr.common.BatchConstants;
 import org.apache.kylin.measure.BufferedMeasureCodec;
 import org.apache.kylin.measure.MeasureAggregators;
+import org.apache.kylin.measure.percentile.PercentileCounter;
+import org.apache.kylin.measure.percentile.PercentileSerializer;
+import org.apache.kylin.metadata.datatype.DataType;
 import org.apache.kylin.metadata.model.MeasureDesc;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.List;
+import java.util.Locale;
 
 /**
  * @author George Song (ysong1)
@@ -59,6 +62,8 @@ public class CuboidReducer extends KylinReducer<Text, Text, Text, Text> {
     private int vcounter;
 
     private Text outputValue = new Text();
+
+    private PercentileSerializer serializer;
 
     @Override
     protected void doSetup(Context context) throws IOException {
@@ -94,6 +99,8 @@ public class CuboidReducer extends KylinReducer<Text, Text, Text, Text> {
         for (int i = 0; i < needAggMeasuresList.size(); i++) {
             needAggrMeasures[i] = needAggMeasuresList.get(i);
         }
+
+        serializer = new PercentileSerializer(DataType.getType("percentile(100)"));
     }
 
     @Override
@@ -111,6 +118,20 @@ public class CuboidReducer extends KylinReducer<Text, Text, Text, Text> {
 
         ByteBuffer valueBuf = codec.encode(result);
 
+        byte[] encodedBytes = new byte[valueBuf.position()];
+        System.arraycopy(valueBuf.array(), 0, encodedBytes, 0, valueBuf.position());
+
+        int[] valueLengths = codec.getCodec().getPeekLength(ByteBuffer.wrap(encodedBytes));
+
+        int valueOffset = 0;
+        for (int i = 0; i < measuresDescs.size(); ++i) {
+            MeasureDesc measureDesc = measuresDescs.get(i);
+            if (measureDesc.getFunction().getReturnDataType().getName().startsWith("percentile")) {
+                PercentileCounter counter = serializer.deserialize(ByteBuffer.wrap(encodedBytes, valueOffset, valueLengths[i]));
+                logger.info("result {}", counter.getRegisters().quantile(0.4));
+            }
+            valueOffset += valueLengths[i];
+        }
         outputValue.set(valueBuf.array(), 0, valueBuf.position());
         context.write(key, outputValue);
     }

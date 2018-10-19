@@ -23,6 +23,12 @@ import org.apache.kylin.common.util.ByteArray;
 import org.apache.kylin.common.util.BytesUtil;
 import org.apache.kylin.common.util.ImmutableBitSet;
 import org.apache.kylin.dimension.DictionaryDimEnc;
+import org.apache.kylin.measure.bitmap.BitmapSerializer;
+import org.apache.kylin.measure.dim.DimCountDistincSerializer;
+import org.apache.kylin.measure.extendedcolumn.ExtendedColumnSerializer;
+import org.apache.kylin.measure.hllc.HLLCSerializer;
+import org.apache.kylin.measure.percentile.PercentileSerializer;
+import org.apache.kylin.measure.topn.TopNCounterSerializer;
 import org.apache.kylin.metadata.datatype.DataTypeSerializer;
 
 import java.nio.ByteBuffer;
@@ -102,13 +108,22 @@ public class GTRecord implements Comparable<GTRecord> {
             if (serializer instanceof DictionaryDimEnc.DictionarySerializer) {
                 int len = serializer.peekLength(buf);
                 BytesUtil.writeUnsigned((Integer) values[i], len, buf);
+                int newPos = buf.position();
+                cols[c].reset(buf.array(), buf.arrayOffset() + pos, newPos - pos);
+                pos = newPos;
+            } else if (serializer instanceof TopNCounterSerializer ||
+                    serializer instanceof HLLCSerializer ||
+                    serializer instanceof BitmapSerializer ||
+                    serializer instanceof ExtendedColumnSerializer ||
+                    serializer instanceof PercentileSerializer ||
+                    serializer instanceof DimCountDistincSerializer) {
+                cols[c].reset((byte[]) values[i], 0, ((byte[]) values[i]).length);
             } else {
                 info.codeSystem.encodeColumnValue(c, values[i], buf);
+                int newPos = buf.position();
+                cols[c].reset(buf.array(), buf.arrayOffset() + pos, newPos - pos);
+                pos = newPos;
             }
-
-            int newPos = buf.position();
-            cols[c].reset(buf.array(), buf.arrayOffset() + pos, newPos - pos);
-            pos = newPos;
         }
         return this;
     }

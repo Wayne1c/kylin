@@ -31,6 +31,7 @@ import org.apache.kylin.cube.CubeSegment;
 import org.apache.kylin.cube.cuboid.Cuboid;
 import org.apache.kylin.cube.gridtable.CuboidToGridTableMapping;
 import org.apache.kylin.gridtable.GTScanRequest;
+import org.apache.kylin.metadata.datatype.DataType;
 import org.apache.kylin.metadata.filter.CompareTupleFilter;
 import org.apache.kylin.metadata.filter.LogicalTupleFilter;
 import org.apache.kylin.metadata.filter.TupleFilter;
@@ -45,6 +46,7 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SparderEnv;
 import org.apache.spark.sql.SparderEnv$;
+import org.apache.spark.sql.manager.UdfManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,7 +57,9 @@ import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.Map;
 
+import static org.apache.spark.sql.functions.callUDF;
 import static org.apache.spark.sql.functions.col;
+import static org.apache.spark.sql.functions.count;
 import static org.apache.spark.sql.functions.max;
 import static org.apache.spark.sql.functions.min;
 import static org.apache.spark.sql.functions.sum;
@@ -157,7 +161,7 @@ public class ParquetTask implements Serializable {
         // where
         String where = scanRequest.getFilterPushDownSQL();
         if (where != null) {
-            dataset = dataset.where(where);
+            dataset.where(where);
         }
 
         //groupby agg
@@ -171,7 +175,6 @@ public class ParquetTask implements Serializable {
         }
 
         //TODO filter(having)
-        // dataset = dataset.filter(toSqlFilter(havingFilterPushDown));
 
         JavaRDD<Row> rowRDD = dataset.javaRDD();
 
@@ -201,7 +204,7 @@ public class ParquetTask implements Serializable {
                 if (entry.getValue() == c) {
                     MeasureDesc measureDesc = entry.getKey();
                     String func = measureDesc.getFunction().getExpression();
-                    columns[i] = getAggColumn(measureDesc.getName(), func);
+                    columns[i] = getAggColumn(measureDesc.getName(), func, measureDesc.getFunction().getReturnDataType());
                     break;
                 }
             }
@@ -210,7 +213,7 @@ public class ParquetTask implements Serializable {
         return columns;
     }
 
-    private Column getAggColumn(String metName, String func) {
+    private Column getAggColumn(String metName, String func, DataType dataType) {
         Column column;
         switch (func) {
             case "SUM":
@@ -221,6 +224,16 @@ public class ParquetTask implements Serializable {
                 break;
             case "MAX":
                 column = max(metName);
+                break;
+            case "COUNT":
+                column = count(metName);
+                break;
+            case "TOP_N":
+            case "COUNT_DISTINCT":
+            case "EXTENDED_COLUMN":
+            case "PERCENTILE_APPROX":
+                String udf = UdfManager.register(dataType, func);
+                column = callUDF(udf, col(metName));
                 break;
             default:
                 throw new IllegalArgumentException("Function " + func + " is not supported");

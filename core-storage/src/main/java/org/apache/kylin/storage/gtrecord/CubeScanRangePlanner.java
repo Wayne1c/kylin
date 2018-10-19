@@ -203,6 +203,10 @@ public class CubeScanRangePlanner extends ScanRangePlannerBase {
                     return colName + "<" + filter.getFirstValue();
                 case GT:
                     return colName + ">" + filter.getFirstValue();
+                case GTE:
+                    return colName + ">=" + filter.getFirstValue();
+                case LTE:
+                    return colName + "<=" + filter.getFirstValue();
                 case IN:
                     String result = colName + "in (";
 

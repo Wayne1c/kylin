@@ -24,11 +24,12 @@ import java.util.Properties
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
-import org.apache.kylin.common.{KylinConfig}
+import org.apache.kylin.common.KylinConfig
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.{SparkListener, SparkListenerApplicationEnd}
 import org.apache.spark.sql.SparkSession.Builder
 import org.apache.spark.sql.internal.{SessionState, SharedState}
+import org.apache.spark.sql.manager.UdfManager
 import org.apache.spark.util.{KylinReflectUtils, XmlUtils}
 import org.apache.spark.{SparkConf, SparkContext}
 
@@ -109,6 +110,7 @@ object KylinSession extends Logging {
             SparkSession.sqlListener.set(null)
           }
         })
+        UdfManager.create(session)
         session
       }
     }

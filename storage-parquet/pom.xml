@@ -31,7 +31,15 @@
         <version>2.6.0-SNAPSHOT</version>
     </parent>
 
+    <properties>
+        <shadeBase>org.apache.kylin.coprocessor.shaded</shadeBase>
+    </properties>
+
     <dependencies>
+        <dependency>
+            <groupId>org.apache.kylin</groupId>
+            <artifactId>kylin-core-metadata</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.apache.kylin</groupId>
@@ -120,14 +128,23 @@
                                     <include>org.apache.kylin:kylin-core-metadata</include>
                                     <include>org.apache.kylin:kylin-core-dictionary</include>
                                     <include>org.apache.kylin:kylin-core-cube</include>
+                                    <include>org.apache.kylin:kylin-engine-spark</include>
+                                    <include>com.tdunning:t-digest</include>
                                 </includes>
                             </artifactSet>
+                            <relocations>
+                                <relocation>
+                                    <pattern>com.tdunning</pattern>
+                                    <shadedPattern>${shadeBase}.com.tdunning</shadedPattern>
+                                </relocation>
+                            </relocations>
                             <filters>
                                 <filter>
                                     <artifact>*:*</artifact>
                                     <excludes>
                                         <exclude>META-INF/*.SF</exclude>
                                         <exclude>META-INF/*.DSA</exclude>
+                      s
                                         <exclude>META-INF/*.RSA</exclude>
                                     </excludes>
                                 </filter>

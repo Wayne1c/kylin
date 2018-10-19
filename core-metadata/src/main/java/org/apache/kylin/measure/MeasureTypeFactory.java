@@ -18,12 +18,8 @@
 
 package org.apache.kylin.measure;
 
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-
-import org.apache.kylin.common.KylinConfig;
-import org.apache.kylin.common.KylinConfigCannotInitException;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import org.apache.kylin.measure.basic.BasicMeasureType;
 import org.apache.kylin.measure.bitmap.BitmapMeasureType;
 import org.apache.kylin.measure.dim.DimCountDistinctMeasureType;
@@ -38,8 +34,9 @@ import org.apache.kylin.metadata.model.FunctionDesc;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 /**
  * Factory for MeasureType.
@@ -116,20 +113,20 @@ abstract public class MeasureTypeFactory<T> {
 
         logger.info("Checking custom measure types from kylin config");
 
-        try {
-            Map<String, String> customMeasureTypes = KylinConfig.getInstanceFromEnv().getCubeCustomMeasureTypes();
-            for (String customFactory : customMeasureTypes.values()) {
-                try {
-                    logger.info("Checking custom measure types from kylin config: " + customFactory);
-                    factoryInsts.add((MeasureTypeFactory<?>) Class.forName(customFactory).newInstance());
-                } catch (Exception e) {
-                    throw new IllegalArgumentException("Unrecognized MeasureTypeFactory classname: " + customFactory,
-                            e);
-                }
-            }
-        } catch (KylinConfigCannotInitException e) {
-            logger.warn("Will not add custome MeasureTypeFactory as KYLIN_CONF nor KYLIN_HOME is set");
-        }
+//        try {
+//            Map<String, String> customMeasureTypes = KylinConfig.getInstanceFromEnv().getCubeCustomMeasureTypes();
+//            for (String customFactory : customMeasureTypes.values()) {
+//                try {
+//                    logger.info("Checking custom measure types from kylin config: " + customFactory);
+//                    factoryInsts.add((MeasureTypeFactory<?>) Class.forName(customFactory).newInstance());
+//                } catch (Exception e) {
+//                    throw new IllegalArgumentException("Unrecognized MeasureTypeFactory classname: " + customFactory,
+//                            e);
+//                }
+//            }
+//        } catch (KylinConfigCannotInitException e) {
+//            logger.warn("Will not add custome MeasureTypeFactory as KYLIN_CONF nor KYLIN_HOME is set");
+//        }
 
         // register factories & data type serializers
         for (MeasureTypeFactory<?> factory : factoryInsts) {
