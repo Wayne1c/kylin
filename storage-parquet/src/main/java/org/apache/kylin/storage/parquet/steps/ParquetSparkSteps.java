@@ -57,7 +57,7 @@ public class ParquetSparkSteps extends ParquetJobSteps {
         sparkExecutable.setJars(jars.toString());
 
         sparkExecutable.setName(ExecutableConstants.STEP_NAME_CONVERT_CUBOID_TO_PARQUET);
-        sparkExecutable.setCounterSaveAs(",," + CubingJob.CUBE_SIZE_BYTES, getCounterOuputPath(jobId));
+        sparkExecutable.setCounterSaveAs(",," + CubingJob.CUBE_SIZE_BYTES, getCounterOutputPath(jobId));
 
         return sparkExecutable;
     }
