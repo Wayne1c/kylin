@@ -148,6 +148,8 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
         KylinSparkJobListener jobListener = new KylinSparkJobListener();
         try (JavaSparkContext sc = new JavaSparkContext(conf)){
             sc.sc().addSparkListener(jobListener);
+
+            HadoopUtil.deletePath(sc.hadoopConfiguration(), new Path(outputPath));
             final SerializableConfiguration sConf = new SerializableConfiguration(sc.hadoopConfiguration());
 
             final KylinConfig envConfig = AbstractHadoopJob.loadKylinConfigFromHdfs(sConf, metaUrl);
@@ -445,6 +447,15 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
                     break;
                 case "double":
                     group.append(measureDesc.getName(), ByteBuffer.wrap(value, offset, length).getDouble());
+                    break;
+                case "decimal":
+                    ByteBuffer buffer = ByteBuffer.wrap(value, offset, length);
+                    int scale = BytesUtil.readVInt(buffer);
+                    int n = BytesUtil.readVInt(buffer);
+
+                    byte[] bytes = new byte[n];
+                    buffer.get(bytes);
+                    group.append(measureDesc.getName(), Binary.fromConstantByteArray(value, offset, length));
                     break;
                 default:
                     group.append(measureDesc.getName(), Binary.fromConstantByteArray(value, offset, length));
