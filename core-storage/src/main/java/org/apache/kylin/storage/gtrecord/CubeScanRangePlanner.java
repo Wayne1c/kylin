@@ -24,6 +24,7 @@ import com.google.common.collect.Sets;
 import org.apache.kylin.common.KylinConfig;
 import org.apache.kylin.common.debug.BackdoorToggles;
 import org.apache.kylin.common.util.ByteArray;
+import org.apache.kylin.common.util.BytesUtil;
 import org.apache.kylin.common.util.ImmutableBitSet;
 import org.apache.kylin.cube.CubeSegment;
 import org.apache.kylin.cube.common.FuzzyValueCombination;
@@ -34,6 +35,7 @@ import org.apache.kylin.cube.gridtable.RecordComparators;
 import org.apache.kylin.cube.gridtable.ScanRangePlannerBase;
 import org.apache.kylin.cube.kv.CubeDimEncMap;
 import org.apache.kylin.cube.model.CubeDesc;
+import org.apache.kylin.dimension.DictionaryDimEnc;
 import org.apache.kylin.gridtable.GTInfo;
 import org.apache.kylin.gridtable.GTRecord;
 import org.apache.kylin.gridtable.GTScanRange;
@@ -41,6 +43,7 @@ import org.apache.kylin.gridtable.GTScanRequest;
 import org.apache.kylin.gridtable.GTScanRequestBuilder;
 import org.apache.kylin.gridtable.GTUtil;
 import org.apache.kylin.gridtable.IGTComparator;
+import org.apache.kylin.metadata.datatype.DataTypeSerializer;
 import org.apache.kylin.metadata.expression.TupleExpression;
 import org.apache.kylin.metadata.filter.CompareTupleFilter;
 import org.apache.kylin.metadata.filter.LogicalTupleFilter;
@@ -52,6 +55,7 @@ import org.apache.kylin.storage.StorageContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collection;
@@ -74,6 +78,7 @@ public class CubeScanRangePlanner extends ScanRangePlannerBase {
     protected CubeDesc cubeDesc;
     protected Cuboid cuboid;
     protected String filterPushDownSQL;
+    protected CuboidToGridTableMapping mapping;
 
     public CubeScanRangePlanner(CubeSegment cubeSegment, Cuboid cuboid, TupleFilter filter, Set<TblColRef> dimensions, //
             Set<TblColRef> groupByDims, List<TblColRef> dynGroupsDims, List<TupleExpression> dynGroupExprs, //
@@ -89,7 +94,7 @@ public class CubeScanRangePlanner extends ScanRangePlannerBase {
         this.cubeDesc = cubeSegment.getCubeDesc();
         this.cuboid = cuboid;
 
-        final CuboidToGridTableMapping mapping = context.getMapping();
+        mapping = context.getMapping();
 
         this.gtInfo = CubeGridTable.newGTInfo(cuboid, new CubeDimEncMap(cubeSegment), mapping);
 
@@ -100,7 +105,6 @@ public class CubeScanRangePlanner extends ScanRangePlannerBase {
         this.rangeEndComparator = RecordComparators.getRangeEndComparator(comp);
         //start key GTRecord compare to stop key GTRecord
         this.rangeStartEndComparator = RecordComparators.getRangeStartEndComparator(comp);
-
         //replace the constant values in filter to dictionary codes
         Set<TblColRef> groupByPushDown = Sets.newHashSet(groupByDims);
         groupByPushDown.addAll(dynGroupsDims);
@@ -195,23 +199,31 @@ public class CubeScanRangePlanner extends ScanRangePlannerBase {
         if (tupleFilter instanceof CompareTupleFilter) {
             CompareTupleFilter filter = (CompareTupleFilter) tupleFilter;
             TblColRef column = filter.getColumn();
+            int index = mapping.getDim2gt().get(column);
+            DataTypeSerializer serializer = gtInfo.getCodeSystem().getSerializer(index);
+            ByteBuffer buffer = ByteBuffer.allocate(serializer.maxLength());
+
             String colName = column.getTableAlias() + "_" + column.getName();
             switch (filter.getOperator()) {
                 case EQ:
-                    return colName + "=" + filter.getFirstValue();
+                    return colName + "=" + toStringValue(filter, serializer, buffer);
                 case LT:
-                    return colName + "<" + filter.getFirstValue();
+                    return colName + "<" + toStringValue(filter, serializer, buffer);
                 case GT:
-                    return colName + ">" + filter.getFirstValue();
+                    return colName + ">" + toStringValue(filter, serializer, buffer);
                 case GTE:
-                    return colName + ">=" + filter.getFirstValue();
+                    return colName + ">=" + toStringValue(filter, serializer, buffer);
                 case LTE:
-                    return colName + "<=" + filter.getFirstValue();
+                    return colName + "<=" + toStringValue(filter, serializer, buffer);
                 case IN:
                     String result = colName + "in (";
 
                     for (Object value : filter.getValues()) {
-                        result += value + ",";
+                        if (column.getType().isStringFamily()) {
+                            result += "'" + value + "'" + ",";
+                        } else {
+                            result += value + ",";
+                        }
                     }
                     if (result.endsWith(",")) {
                         result = result.substring(0, result.length() - 1);
@@ -254,6 +266,23 @@ public class CubeScanRangePlanner extends ScanRangePlannerBase {
         }
 
         throw new IllegalArgumentException("Tuple Filter " + tupleFilter + " is not supported");
+    }
+
+    private Object toStringValue(CompareTupleFilter filter, DataTypeSerializer serializer, ByteBuffer buffer) {
+        Object firstValue = filter.getFirstValue();
+
+        if (serializer instanceof DictionaryDimEnc.DictionarySerializer) {
+            DictionaryDimEnc.DictionarySerializer dictionarySerializer = (DictionaryDimEnc.DictionarySerializer) serializer;
+            buffer.clear();
+            dictionarySerializer.serialize(firstValue, buffer);
+            int id = BytesUtil.readUnsigned(buffer.array(), 0, buffer.position());
+            return id;
+        }
+
+        if (filter.getColumn().getType().isStringFamily()) {
+            return "'" + firstValue + "'";
+        }
+        return firstValue;
     }
 
     /**
