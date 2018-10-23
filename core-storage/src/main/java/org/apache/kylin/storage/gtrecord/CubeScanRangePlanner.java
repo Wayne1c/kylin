@@ -216,7 +216,7 @@ public class CubeScanRangePlanner extends ScanRangePlannerBase {
                 case LTE:
                     return colName + "<=" + toStringValue(filter, serializer, buffer);
                 case IN:
-                    String result = colName + "in (";
+                    String result = colName + " in (";
 
                     for (Object value : filter.getValues()) {
                         if (column.getType().isStringFamily()) {

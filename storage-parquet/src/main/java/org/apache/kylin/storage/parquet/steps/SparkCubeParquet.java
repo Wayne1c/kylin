@@ -66,6 +66,8 @@ import org.apache.kylin.measure.basic.BasicMeasureType;
 import org.apache.kylin.measure.basic.BigDecimalIngester;
 import org.apache.kylin.measure.basic.DoubleIngester;
 import org.apache.kylin.measure.basic.LongIngester;
+import org.apache.kylin.metadata.datatype.BigDecimalSerializer;
+import org.apache.kylin.metadata.datatype.DataType;
 import org.apache.kylin.metadata.model.MeasureDesc;
 import org.apache.kylin.metadata.model.TblColRef;
 import org.apache.parquet.example.data.Group;
@@ -83,12 +85,14 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.PairFunction;
+import org.apache.spark.storage.StorageLevel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
@@ -157,6 +161,7 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
             final CubeInstance cubeInstance = CubeManager.getInstance(envConfig).getCube(cubeName);
             final CubeSegment cubeSegment = cubeInstance.getSegmentById(segmentId);
 
+            StorageLevel storageLevel = StorageLevel.fromString(envConfig.getSparkStorageLevel());
 
             final FileSystem fs = new Path(inputPath).getFileSystem(sc.hadoopConfiguration());
 
@@ -166,12 +171,18 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
             final Job job = Job.getInstance(sConf.get());
             SparkUtil.setHadoopConfForCuboid(job, cubeSegment, metaUrl);
 
+            allRDDs[0] = SparkUtil.parseInputPath(BatchCubingJobBuilder2.getCuboidOutputPathsByLevel(inputPath, 0), fs, sc, Text.class, Text.class).persist(storageLevel);
+            saveToParquet(allRDDs[0], metaUrl, cubeName, cubeSegment, outputPath, 0, job, envConfig);
+
             // Read from cuboid and save to parquet
-            for (int level = 0; level <= totalLevels; level++) {
+            for (int level = 1; level <= totalLevels; level++) {
                 String cuboidPath = BatchCubingJobBuilder2.getCuboidOutputPathsByLevel(inputPath, level);
-                allRDDs[level] = SparkUtil.parseInputPath(cuboidPath, fs, sc, Text.class, Text.class);
+                allRDDs[level] = SparkUtil.parseInputPath(cuboidPath, fs, sc, Text.class, Text.class).persist(storageLevel);
+                allRDDs[level - 1].unpersist();
                 saveToParquet(allRDDs[level], metaUrl, cubeName, cubeSegment, outputPath, level, job, envConfig);
             }
+
+            allRDDs[totalLevels].unpersist();
 
             Map<String, String> counterMap = Maps.newHashMap();
             counterMap.put(ExecutableConstants.HDFS_BYTES_WRITTEN, String.valueOf(jobListener.metrics.getBytesWritten()));
@@ -364,6 +375,8 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
         private Map<MeasureDesc, String> meaTypeMap;
         private GroupFactory factory;
         private BufferedMeasureCodec measureCodec;
+        private BigDecimalSerializer serializer;
+        private int count = 0;
 
         public GenerateGroupRDDFunction(String cubeName, String segmentId, String metaurl, SerializableConfiguration conf, Map<TblColRef, String> colTypeMap, Map<MeasureDesc, String> meaTypeMap) {
             this.cubeName = cubeName;
@@ -384,6 +397,7 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
             decoder = new RowKeyDecoder(cubeSegment);
             factory = new SimpleGroupFactory(GroupWriteSupport.getSchema(conf.get()));
             measureCodec = new BufferedMeasureCodec(cubeDesc.getMeasures());
+            serializer = new BigDecimalSerializer(DataType.getType("decimal"));
         }
 
         @Override
@@ -412,6 +426,7 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
                 parseColValue(group, column, values.get(i));
             }
 
+            count ++;
 
             byte[] encodedBytes = tuple._2().copyBytes();
             int[] valueLengths = measureCodec.getCodec().getPeekLength(ByteBuffer.wrap(encodedBytes));
@@ -440,22 +455,18 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
             }
         }
 
-        private void parseMeaValue(final Group group, final MeasureDesc measureDesc, final byte[] value, final int offset, final int length) {
+        private void parseMeaValue(final Group group, final MeasureDesc measureDesc, final byte[] value, final int offset, final int length) throws IOException {
             switch (meaTypeMap.get(measureDesc)) {
                 case "long":
-                    group.append(measureDesc.getName(), BytesUtil.readLong(value, offset, length));
+                    group.append(measureDesc.getName(), BytesUtil.readVLong(ByteBuffer.wrap(value, offset, length)));
                     break;
                 case "double":
                     group.append(measureDesc.getName(), ByteBuffer.wrap(value, offset, length).getDouble());
                     break;
                 case "decimal":
-                    ByteBuffer buffer = ByteBuffer.wrap(value, offset, length);
-                    int scale = BytesUtil.readVInt(buffer);
-                    int n = BytesUtil.readVInt(buffer);
-
-                    byte[] bytes = new byte[n];
-                    buffer.get(bytes);
-                    group.append(measureDesc.getName(), Binary.fromConstantByteArray(value, offset, length));
+                    BigDecimal decimal = serializer.deserialize(ByteBuffer.wrap(value, offset, length));
+                    decimal = decimal.setScale(4);
+                    group.append(measureDesc.getName(), Binary.fromConstantByteArray(decimal.unscaledValue().toByteArray()));
                     break;
                 default:
                     group.append(measureDesc.getName(), Binary.fromConstantByteArray(value, offset, length));
