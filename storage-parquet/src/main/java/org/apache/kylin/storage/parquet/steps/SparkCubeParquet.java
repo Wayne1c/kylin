@@ -85,7 +85,6 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.PairFunction;
-import org.apache.spark.storage.StorageLevel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
@@ -161,8 +160,6 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
             final CubeInstance cubeInstance = CubeManager.getInstance(envConfig).getCube(cubeName);
             final CubeSegment cubeSegment = cubeInstance.getSegmentById(segmentId);
 
-            StorageLevel storageLevel = StorageLevel.fromString(envConfig.getSparkStorageLevel());
-
             final FileSystem fs = new Path(inputPath).getFileSystem(sc.hadoopConfiguration());
 
             final int totalLevels = cubeSegment.getCuboidScheduler().getBuildLevel();
@@ -171,18 +168,12 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
             final Job job = Job.getInstance(sConf.get());
             SparkUtil.setHadoopConfForCuboid(job, cubeSegment, metaUrl);
 
-            allRDDs[0] = SparkUtil.parseInputPath(BatchCubingJobBuilder2.getCuboidOutputPathsByLevel(inputPath, 0), fs, sc, Text.class, Text.class).persist(storageLevel);
-            saveToParquet(allRDDs[0], metaUrl, cubeName, cubeSegment, outputPath, 0, job, envConfig);
-
             // Read from cuboid and save to parquet
-            for (int level = 1; level <= totalLevels; level++) {
+            for (int level = 0; level <= totalLevels; level++) {
                 String cuboidPath = BatchCubingJobBuilder2.getCuboidOutputPathsByLevel(inputPath, level);
-                allRDDs[level] = SparkUtil.parseInputPath(cuboidPath, fs, sc, Text.class, Text.class).persist(storageLevel);
-                allRDDs[level - 1].unpersist();
+                allRDDs[level] = SparkUtil.parseInputPath(cuboidPath, fs, sc, Text.class, Text.class);
                 saveToParquet(allRDDs[level], metaUrl, cubeName, cubeSegment, outputPath, level, job, envConfig);
             }
-
-            allRDDs[totalLevels].unpersist();
 
             Map<String, String> counterMap = Maps.newHashMap();
             counterMap.put(ExecutableConstants.HDFS_BYTES_WRITTEN, String.valueOf(jobListener.metrics.getBytesWritten()));
@@ -328,6 +319,7 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
             int partition = (int) (cuboidSize / rddCut);
             partition = Math.max(kylinConfig.getSparkMinPartition(), partition);
             partition = Math.min(kylinConfig.getSparkMaxPartition(), partition);
+            logger.info("cuboid:{}, est_size:{}, partitions:{}", cuboidId, cuboidSize, partition);
             return partition;
         }
 
