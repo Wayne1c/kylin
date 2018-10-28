@@ -95,7 +95,6 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 
 
 public class SparkCubeParquet extends AbstractApplication implements Serializable{
@@ -175,6 +174,8 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
                 saveToParquet(allRDDs[level], metaUrl, cubeName, cubeSegment, outputPath, level, job, envConfig);
             }
 
+            logger.info("HDFS: Number of bytes written={}", jobListener.metrics.getBytesWritten());
+
             Map<String, String> counterMap = Maps.newHashMap();
             counterMap.put(ExecutableConstants.HDFS_BYTES_WRITTEN, String.valueOf(jobListener.metrics.getBytesWritten()));
 
@@ -200,7 +201,7 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
 
         logger.info("CuboidToPartitionMapping: {}", cuboidToPartitionMapping.toString());
 
-        JavaPairRDD<Text, Text> repartitionedRDD = rdd.repartitionAndSortWithinPartitions(new CuboidPartitioner(cuboidToPartitionMapping));
+        JavaPairRDD<Text, Text> repartitionedRDD = rdd.repartitionAndSortWithinPartitions(new CuboidPartitioner(cuboidToPartitionMapping, cubeSeg.isEnableSharding()));
 
         String output = BatchCubingJobBuilder2.getCuboidOutputPathsByLevel(hdfsBaseLocation, level);
 
@@ -216,11 +217,12 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
     }
 
     static class CuboidPartitioner extends Partitioner {
-
         private CuboidToPartitionMapping mapping;
+        private boolean enableSharding;
 
-        public CuboidPartitioner(CuboidToPartitionMapping cuboidToPartitionMapping) {
+        public CuboidPartitioner(CuboidToPartitionMapping cuboidToPartitionMapping, boolean enableSharding) {
             this.mapping = cuboidToPartitionMapping;
+            this.enableSharding =enableSharding;
         }
 
         @Override
@@ -231,9 +233,7 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
         @Override
         public int getPartition(Object key) {
             Text textKey = (Text)key;
-            long cuboidId = Bytes.toLong(textKey.getBytes(), RowConstants.ROWKEY_SHARDID_LEN, RowConstants.ROWKEY_CUBOIDID_LEN);
-
-            return mapping.getRandomPartitionForCuboidId(cuboidId);
+            return mapping.getPartitionForCuboidId(textKey.getBytes(), enableSharding);
         }
     }
 
@@ -295,9 +295,25 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
             throw new IllegalArgumentException("No cuboidId for partition id: " + partition);
         }
 
-        public int getRandomPartitionForCuboidId(long cuboidId) {
+        public int getPartitionForCuboidId(byte[] key, boolean enableSharding) {
+            long cuboidId = Bytes.toLong(key, RowConstants.ROWKEY_SHARDID_LEN, RowConstants.ROWKEY_CUBOIDID_LEN);
+
             List<Integer> partitions = cuboidPartitions.get(cuboidId);
-            return partitions.get(new Random().nextInt(partitions.size()));
+            if (enableSharding) {
+                short shardId = (short) BytesUtil.readShort(key, 0, RowConstants.ROWKEY_SHARDID_LEN);
+                return partitions.get(shardId % partitions.size());
+            } else {
+                return partitions.get(mod(key, 0, RowConstants.ROWKEY_SHARD_AND_CUBOID_LEN, partitions.size()));
+            }
+        }
+
+        private int mod(byte[] src, int start, int end, int total) {
+            int sum = Bytes.hashBytes(src, start, end - start);
+            int mod = sum % total;
+            if (mod < 0)
+                mod += total;
+
+            return mod;
         }
 
         public int getPartitionNumForCuboidId(long cuboidId) {
@@ -394,8 +410,6 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
 
         @Override
         public Tuple2<Void, Group> call(Tuple2<Text, Text> tuple) throws Exception {
-
-            logger.debug("call: transfer Text to byte[]");
             if (initialized == false) {
                 synchronized (SparkCubeParquet.class) {
                     if (initialized == false) {
@@ -420,7 +434,7 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
 
             count ++;
 
-            byte[] encodedBytes = tuple._2().copyBytes();
+            byte[] encodedBytes = tuple._2().getBytes();
             int[] valueLengths = measureCodec.getCodec().getPeekLength(ByteBuffer.wrap(encodedBytes));
 
             int valueOffset = 0;

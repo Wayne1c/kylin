@@ -59,7 +59,6 @@ import java.util.Map;
 
 import static org.apache.spark.sql.functions.callUDF;
 import static org.apache.spark.sql.functions.col;
-import static org.apache.spark.sql.functions.count;
 import static org.apache.spark.sql.functions.max;
 import static org.apache.spark.sql.functions.min;
 import static org.apache.spark.sql.functions.sum;
@@ -97,7 +96,7 @@ public class ParquetTask implements Serializable {
 
             String baseFolder = dataFolderName.substring(0, dataFolderName.lastIndexOf('/'));
             String cuboidId = dataFolderName.substring(dataFolderName.lastIndexOf("/") + 1);
-            String prefix = "cuboid_" + cuboidId;
+            String prefix = "cuboid_" + cuboidId + "_";
 
             CubeInstance cubeInstance = CubeManager.getInstance(kylinConfig).getCube(request.getRealizationId());
             CubeSegment cubeSegment = cubeInstance.getSegmentById(request.getSegmentId());
@@ -150,7 +149,6 @@ public class ParquetTask implements Serializable {
         SQLContext sqlContext = new SQLContext(SparderEnv.getSparkSession().sparkContext());
 
         Dataset dataset = sqlContext.read().parquet(parquetPaths);
-
         ImmutableBitSet dimensions = scanRequest.getDimensions();
         ImmutableBitSet metrics = scanRequest.getAggrMetrics();
 
@@ -226,7 +224,7 @@ public class ParquetTask implements Serializable {
                 column = max(metName);
                 break;
             case "COUNT":
-                column = count(metName);
+                column = sum(metName);
                 break;
             case "TOP_N":
             case "COUNT_DISTINCT":
