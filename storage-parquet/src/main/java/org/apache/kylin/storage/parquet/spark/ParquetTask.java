@@ -55,6 +55,7 @@ import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import static org.apache.spark.sql.functions.callUDF;
@@ -172,8 +173,6 @@ public class ParquetTask implements Serializable {
             dataset = dataset.groupBy(getGroupByColumn(dimensions, mapping)).agg(aggCols[0], tailCols);
         }
 
-        //TODO filter(having)
-
         JavaRDD<Row> rowRDD = dataset.javaRDD();
 
         JavaRDD<Object[]> objRDD = rowRDD.map(new Function<Row, Object[]>() {
@@ -187,9 +186,11 @@ public class ParquetTask implements Serializable {
             }
         });
 
-        Iterator<Object[]> objIterator = objRDD.toLocalIterator();
+        logger.info("partitions: {}", objRDD.getNumPartitions());
 
-        return objIterator;
+        List<Object[]> result = objRDD.collect();
+
+        return result.iterator();
     }
 
     private Column[] getAggColumns(ImmutableBitSet metrics, CuboidToGridTableMapping mapping) {
