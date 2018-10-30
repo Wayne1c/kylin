@@ -32,9 +32,6 @@ import org.apache.kylin.cube.cuboid.Cuboid;
 import org.apache.kylin.cube.gridtable.CuboidToGridTableMapping;
 import org.apache.kylin.gridtable.GTScanRequest;
 import org.apache.kylin.metadata.datatype.DataType;
-import org.apache.kylin.metadata.filter.CompareTupleFilter;
-import org.apache.kylin.metadata.filter.LogicalTupleFilter;
-import org.apache.kylin.metadata.filter.TupleFilter;
 import org.apache.kylin.metadata.model.MeasureDesc;
 import org.apache.kylin.metadata.model.TblColRef;
 import org.apache.spark.api.java.JavaRDD;
@@ -58,6 +55,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.spark.sql.functions.asc;
 import static org.apache.spark.sql.functions.callUDF;
 import static org.apache.spark.sql.functions.col;
 import static org.apache.spark.sql.functions.max;
@@ -173,6 +171,9 @@ public class ParquetTask implements Serializable {
             dataset = dataset.groupBy(getGroupByColumn(dimensions, mapping)).agg(aggCols[0], tailCols);
         }
 
+        // sort
+        dataset = dataset.sort(getSortColumn(dimensions, mapping));
+
         JavaRDD<Row> rowRDD = dataset.javaRDD();
 
         JavaRDD<Object[]> objRDD = rowRDD.map(new Function<Row, Object[]>() {
@@ -287,65 +288,20 @@ public class ParquetTask implements Serializable {
         return columns;
     }
 
-    private String toSqlFilter(TupleFilter tupleFilter) {
+    private Column[] getSortColumn(ImmutableBitSet dimensions, CuboidToGridTableMapping mapping) {
+        Column[] columns = new Column[dimensions.trueBitCount()];
+        Map<TblColRef, Integer> dim2gt = mapping.getDim2gt();
 
-        if (tupleFilter instanceof CompareTupleFilter) {
-            CompareTupleFilter filter = (CompareTupleFilter) tupleFilter;
-            TblColRef column = filter.getColumn();
-            String colName = column.getTableAlias() + "_" + column.getName();
-            switch (filter.getOperator()) {
-                case EQ:
-                    return colName + "=" + filter.getFirstValue();
-                case LT:
-                    return colName + "<" + filter.getFirstValue();
-                case GT:
-                    return colName + ">" + filter.getFirstValue();
-                case IN:
-                    String result = colName + "in (";
-
-                    for (Object value : filter.getValues()) {
-                        result += value + ",";
-                    }
-                    if (result.endsWith(",")) {
-                        result = result.substring(0, result.length() - 1);
-                    }
-                    result += ")";
-                    return result;
-                default:
-                    throw new IllegalStateException("Operator not supported: " + filter.getOperator() + " in " + tupleFilter);
-            }
-        } else if (tupleFilter instanceof LogicalTupleFilter) {
-            String result = "(";
-            switch (tupleFilter.getOperator()) {
-                case AND:
-                    for (TupleFilter filter : tupleFilter.getChildren()) {
-                        String child = toSqlFilter(filter);
-                        if (child != null) {
-                            result += child + " and ";
-                        }
-                    }
-                    if (result.endsWith(" and ")) {
-                        result = result.substring(0, result.lastIndexOf(" and "));
-                    }
+        for (int i = 0; i < dimensions.trueBitCount(); i++) {
+            int c = dimensions.trueBitAt(i);
+            for (Map.Entry<TblColRef, Integer> entry : dim2gt.entrySet()) {
+                if (entry.getValue() == c) {
+                    columns[i] = asc(entry.getKey().getTableAlias() + "_" + entry.getKey().getName());
                     break;
-                case OR:
-                    for (TupleFilter filter : tupleFilter.getChildren()) {
-                        String child = toSqlFilter(filter);
-                        if (child != null) {
-                            result += child + " or ";
-                        }
-                    }
-                    if (result.endsWith(" or ")) {
-                        result = result.substring(0, result.lastIndexOf(" or "));
-                    }
-                    break;
-                default:
-                    throw new IllegalArgumentException("operator " + tupleFilter.getOperator() + " is not supported");
+                }
             }
-            result += ")";
-            return result;
         }
 
-        throw new IllegalArgumentException("Tuple Filter " + tupleFilter + " is not supported");
+        return columns;
     }
 }
