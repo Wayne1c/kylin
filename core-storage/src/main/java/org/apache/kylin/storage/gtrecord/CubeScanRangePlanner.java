@@ -113,6 +113,7 @@ public class CubeScanRangePlanner extends ScanRangePlannerBase {
 
         if (filter != null) {
             this.filterPushDownSQL = toSqlFilter(filter);
+            logger.info("--filterPushDownSQL--: {}", this.filterPushDownSQL);
         }
 
         this.gtDimensions = mapping.makeGridTableColumns(dimensions);
@@ -195,6 +196,7 @@ public class CubeScanRangePlanner extends ScanRangePlannerBase {
         return scanRequest;
     }
 
+    //TODO IN clause with dict, with empty value set
     private String toSqlFilter(TupleFilter tupleFilter) {
         if (tupleFilter instanceof CompareTupleFilter) {
             CompareTupleFilter filter = (CompareTupleFilter) tupleFilter;
