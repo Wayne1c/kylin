@@ -37,6 +37,7 @@
         <fastBuildMode />
         <buildCubeUsingProvidedData />
         <engineType />
+        <storageEngine />
     </properties>
 
     <!-- Dependencies. -->
@@ -424,6 +425,7 @@
                                     <arguments>
                                         <argument>-Dhdp.version=${hdp.version}</argument>
                                         <argument>-DfastBuildMode=${fastBuildMode}</argument>
+                                        <argument>-DstorageEngine=${storageEngine}</argument>
                                         <argument>
                                             -DbuildCubeUsingProvidedData=${buildCubeUsingProvidedData}
                                         </argument>

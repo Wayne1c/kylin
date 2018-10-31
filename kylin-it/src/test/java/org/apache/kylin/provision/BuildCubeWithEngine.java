@@ -163,6 +163,11 @@ public class BuildCubeWithEngine {
     }
 
     private static boolean isFastBuildMode() {
+        String storageEngine = System.getProperty("storageEngine");
+        if (storageEngine != null && "parquet".equalsIgnoreCase(storageEngine)) {
+            return true;
+        }
+
         String fastModeStr = System.getProperty("fastBuildMode");
         if (fastModeStr == null)
             fastModeStr = System.getenv("KYLIN_CI_FASTBUILD");
