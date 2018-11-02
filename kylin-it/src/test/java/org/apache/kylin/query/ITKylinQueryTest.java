@@ -31,6 +31,7 @@ import org.apache.kylin.common.KylinVersion;
 import org.apache.kylin.common.debug.BackdoorToggles;
 import org.apache.kylin.common.exceptions.KylinTimeoutException;
 import org.apache.kylin.gridtable.StorageSideBehavior;
+import org.apache.kylin.junit.SparkTestRunner;
 import org.apache.kylin.metadata.realization.RealizationType;
 import org.apache.kylin.query.routing.Candidate;
 import org.apache.kylin.query.routing.rules.RemoveBlackoutRealizationsRule;
@@ -44,15 +45,24 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.TestRule;
+import org.junit.runner.Description;
+import org.junit.runner.RunWith;
+import org.junit.runners.model.Statement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Maps;
 
-@Ignore("KylinQueryTest is contained by ITCombinationTest")
+//@Ignore("KylinQueryTest is contained by ITCombinationTest")
+@RunWith(SparkTestRunner.class)
 public class ITKylinQueryTest extends KylinTestBase {
 
     private static final Logger logger = LoggerFactory.getLogger(ITKylinQueryTest.class);
+    private static final String[] parquetSkipTests = new String[] {"testTimeoutQuery"};
+
+    @Rule
+    public TestRule parquetSkipRule = new ParquetSkipRule();
 
     @Rule
     public ExpectedException thrown = ExpectedException.none();
@@ -66,7 +76,7 @@ public class ITKylinQueryTest extends KylinTestBase {
         priorities.put(RealizationType.INVERTED_INDEX, 0);
         Candidate.setPriorities(priorities);
 
-        joinType = "left";
+        joinType = "inner";
 
         setupAll();
     }
@@ -470,6 +480,28 @@ public class ITKylinQueryTest extends KylinTestBase {
         execAndCompPlan(getQueryFolderPrefix() + "src/test/resources/query/sql_plan", null, true);
         if (originProp == null || "false".equals(originProp))
             System.setProperty("calcite.debug", "false");
+    }
+
+    static class ParquetSkipRule implements TestRule {
+
+        @Override
+        public Statement apply(final Statement statement, final Description description) {
+            return new Statement() {
+                @Override
+                public void evaluate() throws Throwable {
+                    String methodName = description.getMethodName();
+                    boolean skip = false;
+                    for (String testName : parquetSkipTests) {
+                        if (testName.equals(methodName)) {
+                            skip = true;
+                        }
+                    }
+                    if (!skip) {
+                        statement.evaluate();
+                    }
+                }
+            };
+        }
     }
 }
                                                   

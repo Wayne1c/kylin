@@ -343,6 +343,16 @@
       </dependency>
       <dependency>
         <groupId>org.apache.kylin</groupId>
+        <artifactId>kylin-tomcat-ext</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.kylin</groupId>
+        <artifactId>kylin-test</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.kylin</groupId>
         <artifactId>kylin-core-common</artifactId>
         <version>${project.version}</version>
         <type>test-jar</type>
@@ -1304,6 +1314,7 @@
     <module>metrics-reporter-kafka</module>
     <module>cache</module>
     <module>datasource-sdk</module>
+    <module>kylin-test</module>
   </modules>
 
   <reporting>

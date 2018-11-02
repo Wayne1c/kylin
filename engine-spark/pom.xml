@@ -85,7 +85,6 @@
         <dependency>
             <groupId>org.apache.kylin</groupId>
             <artifactId>kylin-tomcat-ext</artifactId>
-            <version>${project.version}</version>
         </dependency>
 
         <dependency>

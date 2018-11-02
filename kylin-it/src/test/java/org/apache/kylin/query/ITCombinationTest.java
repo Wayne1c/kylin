@@ -67,7 +67,7 @@ public class ITCombinationTest extends ITKylinQueryTest {
     public static Collection<Object[]> configs() {
         return Arrays.asList(new Object[][] { //
                 { "inner", "on", "v2" }, //
-                { "left", "on", "v2" }, //
+               // { "left", "on", "v2" }, //
         });
     }
 

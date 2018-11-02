@@ -54,6 +54,7 @@ import org.apache.kylin.common.QueryContextFacade;
 import org.apache.kylin.common.debug.BackdoorToggles;
 import org.apache.kylin.common.util.HBaseMetadataTestCase;
 import org.apache.kylin.common.util.Pair;
+import org.apache.kylin.ext.ClassLoaderUtils;
 import org.apache.kylin.metadata.project.ProjectInstance;
 import org.apache.kylin.metadata.querymeta.SelectedColumnMeta;
 import org.apache.kylin.metadata.realization.NoRealizationFoundException;
@@ -61,6 +62,7 @@ import org.apache.kylin.query.relnode.OLAPContext;
 import org.apache.kylin.query.routing.rules.RemoveBlackoutRealizationsRule;
 import org.apache.kylin.query.util.PushDownUtil;
 import org.apache.parquet.Strings;
+import org.apache.spark.sql.SparderEnv;
 import org.dbunit.DatabaseUnitException;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.DatabaseConnection;
@@ -790,6 +792,11 @@ public class KylinTestBase {
         // Load H2 Tables (inner join)
         H2Database h2DB = new H2Database(h2Connection, config, project);
         h2DB.loadAllTables();
+
+        ClassLoader originClassLoader = Thread.currentThread().getContextClassLoader();
+        Thread.currentThread().setContextClassLoader(ClassLoaderUtils.getSparkClassLoader());
+        SparderEnv.init();//trigger init
+        Thread.currentThread().setContextClassLoader(originClassLoader);
     }
 
     protected static void clean() {
