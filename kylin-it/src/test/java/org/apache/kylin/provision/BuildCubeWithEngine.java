@@ -18,25 +18,9 @@
 
 package org.apache.kylin.provision;
 
-import java.io.File;
-import java.io.IOException;
-import java.lang.reflect.Method;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Random;
-import java.util.Set;
-import java.util.TimeZone;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -74,9 +58,24 @@ import org.apache.kylin.storage.hbase.util.ZookeeperJobLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
+import java.io.File;
+import java.io.IOException;
+import java.lang.reflect.Method;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
+import java.util.TimeZone;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 public class BuildCubeWithEngine {
 
@@ -163,16 +162,19 @@ public class BuildCubeWithEngine {
     }
 
     private static boolean isFastBuildMode() {
-        String storageEngine = System.getProperty("storageEngine");
-        if (storageEngine != null && "parquet".equalsIgnoreCase(storageEngine)) {
-            return true;
-        }
-
         String fastModeStr = System.getProperty("fastBuildMode");
         if (fastModeStr == null)
             fastModeStr = System.getenv("KYLIN_CI_FASTBUILD");
 
         return "true".equalsIgnoreCase(fastModeStr);
+    }
+
+    private static boolean isParquetStorage() {
+        String storageEngine = System.getProperty("storageEngine");
+        if (storageEngine != null && "parquet".equalsIgnoreCase(storageEngine)) {
+            return true;
+        }
+        return false;
     }
 
     protected void deployEnv() throws IOException {
@@ -324,7 +326,7 @@ public class BuildCubeWithEngine {
         if (!buildSegment(cubeName, date2, date3))
             return false;
         checkNormalSegRangeInfo(cubeManager.getCube(cubeName));
-        if (!optimizeCube(cubeName))
+        if (!isParquetStorage() && !optimizeCube(cubeName))
             return false;
         checkNormalSegRangeInfo(cubeManager.getCube(cubeName));
         if (!buildSegment(cubeName, date3, date4))
@@ -337,10 +339,10 @@ public class BuildCubeWithEngine {
             return false;
         checkEmptySegRangeInfo(cubeManager.getCube(cubeName));
 
-        if (!mergeSegment(cubeName, date2, date4)) // merge 2 normal segments
+        if (!isParquetStorage() && !mergeSegment(cubeName, date2, date4)) // merge 2 normal segments
             return false;
         checkNormalSegRangeInfo(cubeManager.getCube(cubeName));
-        if (!mergeSegment(cubeName, date2, date5)) // merge normal and empty
+        if (!isParquetStorage() && !mergeSegment(cubeName, date2, date5)) // merge normal and empty
             return false;
         checkNormalSegRangeInfo(cubeManager.getCube(cubeName));
 
