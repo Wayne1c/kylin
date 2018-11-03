@@ -318,7 +318,7 @@ public class BuildCubeWithEngine {
         long date6 = f.parse("2024-01-01").getTime();
 
         if (fastBuildMode)
-            return buildSegment(cubeName, date1, date4);
+            return buildSegment(cubeName, date1, date6);
 
         if (!buildSegment(cubeName, date1, date2))
             return false;
