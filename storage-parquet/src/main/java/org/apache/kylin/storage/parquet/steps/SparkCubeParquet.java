@@ -45,6 +45,7 @@ import org.apache.kylin.cube.CubeSegment;
 import org.apache.kylin.cube.cuboid.Cuboid;
 import org.apache.kylin.cube.kv.RowConstants;
 import org.apache.kylin.cube.kv.RowKeyDecoder;
+import org.apache.kylin.cube.kv.RowKeyDecoderParquet;
 import org.apache.kylin.cube.model.CubeDesc;
 import org.apache.kylin.dimension.AbstractDateDimEnc;
 import org.apache.kylin.dimension.DimensionEncoding;
@@ -402,7 +403,7 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
             CubeDesc cubeDesc = cubeInstance.getDescriptor();
             CubeSegment cubeSegment = cubeInstance.getSegmentById(segmentId);
             measureDescs = cubeDesc.getMeasures();
-            decoder = new RowKeyDecoder(cubeSegment);
+            decoder = new RowKeyDecoderParquet(cubeSegment);
             factory = new SimpleGroupFactory(GroupWriteSupport.getSchema(conf.get()));
             measureCodec = new BufferedMeasureCodec(cubeDesc.getMeasures());
             serializer = new BigDecimalSerializer(DataType.getType("decimal"));
