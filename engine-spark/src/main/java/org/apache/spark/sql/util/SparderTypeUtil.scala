@@ -72,6 +72,7 @@ object SparderTypeUtil extends Logging {
       case "dim_dc" => BinaryType
       case "boolean" => BooleanType
       case "extendedcolumn" => BinaryType
+      case "raw" => BinaryType
       case noSupport => throw new IllegalArgumentException(s"No supported data type: $noSupport")
     }
   }

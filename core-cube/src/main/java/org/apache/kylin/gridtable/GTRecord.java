@@ -28,6 +28,7 @@ import org.apache.kylin.measure.dim.DimCountDistincSerializer;
 import org.apache.kylin.measure.extendedcolumn.ExtendedColumnSerializer;
 import org.apache.kylin.measure.hllc.HLLCSerializer;
 import org.apache.kylin.measure.percentile.PercentileSerializer;
+import org.apache.kylin.measure.raw.RawSerializer;
 import org.apache.kylin.measure.topn.TopNCounterSerializer;
 import org.apache.kylin.metadata.datatype.DataTypeSerializer;
 
@@ -103,6 +104,22 @@ public class GTRecord implements Comparable<GTRecord> {
         int pos = buf.position();
         for (int i = 0; i < selectedCols.trueBitCount(); i++) {
             int c = selectedCols.trueBitAt(i);
+            info.codeSystem.encodeColumnValue(c, values[i], buf);
+            int newPos = buf.position();
+            cols[c].reset(buf.array(), buf.arrayOffset() + pos, newPos - pos);
+            pos = newPos;
+        }
+        return this;
+    }
+
+    /** set record to the codes of specified values, reuse given space to hold the codes */
+    public GTRecord setValuesParquet(ImmutableBitSet selectedCols, ByteArray space, Object... values) {
+        assert selectedCols.cardinality() == values.length;
+
+        ByteBuffer buf = space.asBuffer();
+        int pos = buf.position();
+        for (int i = 0; i < selectedCols.trueBitCount(); i++) {
+            int c = selectedCols.trueBitAt(i);
 
             DataTypeSerializer serializer = info.codeSystem.getSerializer(c);
             if (serializer instanceof DictionaryDimEnc.DictionarySerializer) {
@@ -116,7 +133,8 @@ public class GTRecord implements Comparable<GTRecord> {
                     serializer instanceof BitmapSerializer ||
                     serializer instanceof ExtendedColumnSerializer ||
                     serializer instanceof PercentileSerializer ||
-                    serializer instanceof DimCountDistincSerializer) {
+                    serializer instanceof DimCountDistincSerializer ||
+                    serializer instanceof RawSerializer) {
                 cols[c].reset((byte[]) values[i], 0, ((byte[]) values[i]).length);
             } else {
                 info.codeSystem.encodeColumnValue(c, values[i], buf);

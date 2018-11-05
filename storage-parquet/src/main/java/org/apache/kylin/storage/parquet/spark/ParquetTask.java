@@ -232,6 +232,7 @@ public class ParquetTask implements Serializable {
             case "COUNT_DISTINCT":
             case "EXTENDED_COLUMN":
             case "PERCENTILE_APPROX":
+            case "RAW":
                 String udf = UdfManager.register(dataType, func);
                 column = callUDF(udf, col(metName));
                 break;

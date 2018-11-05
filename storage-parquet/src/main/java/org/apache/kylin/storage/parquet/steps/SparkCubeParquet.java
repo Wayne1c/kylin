@@ -418,7 +418,7 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
                 }
             }
 
-            long cuboid = decoder.decode(tuple._1.getBytes());
+            long cuboid = decoder.decode4Parquet(tuple._1.getBytes());
             List<String> values = decoder.getValues();
             List<TblColRef> columns = decoder.getColumns();
 

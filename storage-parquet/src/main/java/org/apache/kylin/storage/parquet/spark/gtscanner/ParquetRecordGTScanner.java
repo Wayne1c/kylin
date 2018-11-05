@@ -82,7 +82,7 @@ public abstract class ParquetRecordGTScanner implements IGTScanner {
             @Nullable
             @Override
             public GTRecord apply(@Nullable Object[] input) {
-                gtrecord.setValues(ParquetRecordGTScanner.this.columns, new ByteArray(info.getMaxColumnLength(ParquetRecordGTScanner.this.columns)), input);
+                gtrecord.setValuesParquet(ParquetRecordGTScanner.this.columns, new ByteArray(info.getMaxColumnLength(ParquetRecordGTScanner.this.columns)), input);
 
                 scannedBytes += info.getMaxColumnLength(ParquetRecordGTScanner.this.columns);
                 if ((++scannedRows % GTScanRequest.terminateCheckInterval == 1) && Thread.interrupted()) {

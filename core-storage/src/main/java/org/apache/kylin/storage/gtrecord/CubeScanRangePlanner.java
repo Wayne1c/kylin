@@ -45,7 +45,9 @@ import org.apache.kylin.gridtable.GTUtil;
 import org.apache.kylin.gridtable.IGTComparator;
 import org.apache.kylin.metadata.datatype.DataTypeSerializer;
 import org.apache.kylin.metadata.expression.TupleExpression;
+import org.apache.kylin.metadata.filter.CaseTupleFilter;
 import org.apache.kylin.metadata.filter.CompareTupleFilter;
+import org.apache.kylin.metadata.filter.ConstantTupleFilter;
 import org.apache.kylin.metadata.filter.LogicalTupleFilter;
 import org.apache.kylin.metadata.filter.TupleFilter;
 import org.apache.kylin.metadata.model.DynamicFunctionDesc;
@@ -201,6 +203,8 @@ public class CubeScanRangePlanner extends ScanRangePlannerBase {
         if (tupleFilter instanceof CompareTupleFilter) {
             CompareTupleFilter filter = (CompareTupleFilter) tupleFilter;
             TblColRef column = filter.getColumn();
+            if (column == null)
+                return "1 = 1";
             int index = mapping.getDim2gt().get(column);
             DataTypeSerializer serializer = gtInfo.getCodeSystem().getSerializer(index);
             ByteBuffer buffer = ByteBuffer.allocate(serializer.maxLength());
@@ -235,6 +239,30 @@ public class CubeScanRangePlanner extends ScanRangePlannerBase {
                 default:
                     throw new IllegalStateException("operator not supported: " + filter.getOperator() + " in " + tupleFilter);
             }
+        } else if(tupleFilter instanceof ConstantTupleFilter) {
+            Object value = ((ConstantTupleFilter)tupleFilter).getValues().toArray()[0];
+            if (value == null) {
+                return "1=1";
+            } else {
+                if (value instanceof String) {
+                    return "'" + value + "'";
+                } else {
+                    return "" + value;
+                }
+            }
+        } else if (tupleFilter instanceof CaseTupleFilter) {
+            CaseTupleFilter filter = (CaseTupleFilter)tupleFilter;
+            String result = "(case ";
+            TupleFilter whenFilter;
+            TupleFilter thenFilter;
+            for (int i = 0; i < filter.getWhenFilters().size(); i++) {
+                whenFilter = filter.getWhenFilters().get(i);
+                thenFilter = filter.getThenFilters().get(i);
+                result += " when " + toSqlFilter(whenFilter) + " then " + toSqlFilter(thenFilter);
+            }
+            result += " else " + toSqlFilter(filter.getElseFilter());
+            result += " end)";
+            return result;
         } else if (tupleFilter instanceof LogicalTupleFilter) {
             String result = "(";
             switch (tupleFilter.getOperator()) {
@@ -274,6 +302,9 @@ public class CubeScanRangePlanner extends ScanRangePlannerBase {
         Object firstValue = filter.getFirstValue();
 
         if (serializer instanceof DictionaryDimEnc.DictionarySerializer) {
+            if (firstValue instanceof String && "".equals(firstValue)) {
+                return 0;
+            }
             DictionaryDimEnc.DictionarySerializer dictionarySerializer = (DictionaryDimEnc.DictionarySerializer) serializer;
             buffer.clear();
             dictionarySerializer.serialize(firstValue, buffer);

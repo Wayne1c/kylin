@@ -147,6 +147,7 @@ class SparderAggFun(funcName: String, dataTp: org.apache.kylin.metadata.datatype
         case "bitmap" => buffer.apply(0).asInstanceOf[Array[Byte]]
         case "dim_dc" => buffer.apply(0).asInstanceOf[Array[Byte]]
         case "extendedcolumn" => buffer.apply(0).asInstanceOf[Array[Byte]]
+        case "raw" => buffer.apply(0).asInstanceOf[Array[Byte]]
         case t if t startsWith "top" => buffer.apply(0).asInstanceOf[Array[Byte]]
         case _ => null
       }

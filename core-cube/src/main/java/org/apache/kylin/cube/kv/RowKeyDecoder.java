@@ -69,6 +69,25 @@ public class RowKeyDecoder {
         return cuboidId;
     }
 
+    public long decode4Parquet(byte[] bytes) throws IOException {
+        this.values.clear();
+
+        long cuboidId = rowKeySplitter.split(bytes);
+        initCuboid(cuboidId);
+
+        ByteArray[] splits = rowKeySplitter.getSplitBuffers();
+
+        int offset = rowKeySplitter.getBodySplitOffset(); // skip shard and cuboid id part
+
+        for (int i = 0; i < this.cuboid.getColumns().size(); i++) {
+            TblColRef col = this.cuboid.getColumns().get(i);
+            collectValue(col, splits[offset].array(), splits[offset].offset(), splits[offset].length(), true);
+            offset++;
+        }
+
+        return cuboidId;
+    }
+
     private void initCuboid(long cuboidID) {
         if (this.cuboid != null && this.cuboid.getId() == cuboidID) {
             return;
@@ -77,7 +96,16 @@ public class RowKeyDecoder {
     }
 
     private void collectValue(TblColRef col, byte[] valueBytes, int offset, int length) throws IOException {
-        String strValue = colIO.readColumnString(col, valueBytes, offset, length);
+        collectValue(col, valueBytes, offset, length, false);
+    }
+
+    private void collectValue(TblColRef col, byte[] valueBytes, int offset, int length, boolean isParquetStorage) throws IOException {
+        String strValue;
+        if (isParquetStorage) {
+            strValue = colIO.readColumnStringKeepDicValue(col, valueBytes, offset, length);
+        } else {
+            strValue = colIO.readColumnString(col, valueBytes, offset, length);
+        }
         values.add(strValue);
     }
 
