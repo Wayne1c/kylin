@@ -141,11 +141,13 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
         final String outputPath = optionsHelper.getOptionValue(OPTION_OUTPUT_PATH);
         final String counterPath = optionsHelper.getOptionValue(OPTION_COUNTER_PATH);
 
+        Class[] kryoClassArray = new Class[] { Class.forName("scala.reflect.ClassTag$$anon$1"), Text.class, Group.class};
 
         SparkConf conf = new SparkConf().setAppName("Converting Parquet File for: " + cubeName + " segment " + segmentId);
         //serialization conf
         conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer");
         conf.set("spark.kryo.registrator", "org.apache.kylin.engine.spark.KylinKryoRegistrator");
+        conf.set("spark.kryo.registrationRequired", "true").registerKryoClasses(kryoClassArray);
 
 
         KylinSparkJobListener jobListener = new KylinSparkJobListener();
@@ -166,7 +168,6 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
             JavaPairRDD<Text, Text>[] allRDDs = new JavaPairRDD[totalLevels + 1];
 
             final Job job = Job.getInstance(sConf.get());
-            SparkUtil.setHadoopConfForCuboid(job, cubeSegment, metaUrl);
 
             // Read from cuboid and save to parquet
             for (int level = 0; level <= totalLevels; level++) {
@@ -186,7 +187,7 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
 
     }
 
-    protected void saveToParquet(JavaPairRDD<Text, Text> rdd, String metaUrl, String cubeName, CubeSegment cubeSeg, String hdfsBaseLocation, int level, Job job, KylinConfig kylinConfig) throws Exception {
+    protected void saveToParquet(JavaPairRDD<Text, Text> rdd, String metaUrl, String cubeName, CubeSegment cubeSeg, String parquetOutput, int level, Job job, KylinConfig kylinConfig) throws Exception {
         final IDimensionEncodingMap dimEncMap = cubeSeg.getDimensionEncodingMap();
 
         Cuboid baseCuboid = Cuboid.getBaseCuboid(cubeSeg.getCubeDesc());
@@ -202,9 +203,9 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
 
         logger.info("CuboidToPartitionMapping: {}", cuboidToPartitionMapping.toString());
 
-        JavaPairRDD<Text, Text> repartitionedRDD = rdd.repartitionAndSortWithinPartitions(new CuboidPartitioner(cuboidToPartitionMapping, cubeSeg.isEnableSharding()));
+        JavaPairRDD<Text, Text> repartitionedRDD = rdd.partitionBy(new CuboidPartitioner(cuboidToPartitionMapping, cubeSeg.isEnableSharding()));
 
-        String output = BatchCubingJobBuilder2.getCuboidOutputPathsByLevel(hdfsBaseLocation, level);
+        String output = BatchCubingJobBuilder2.getCuboidOutputPathsByLevel(parquetOutput, level);
 
         job.setOutputFormatClass(CustomParquetOutputFormat.class);
         GroupWriteSupport.setSchema(schema, job.getConfiguration());
@@ -234,7 +235,7 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
         @Override
         public int getPartition(Object key) {
             Text textKey = (Text)key;
-            return mapping.getPartitionForCuboidId(textKey.getBytes(), enableSharding);
+            return mapping.getPartitionForCuboidId(textKey.getBytes());
         }
     }
 
@@ -296,16 +297,12 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
             throw new IllegalArgumentException("No cuboidId for partition id: " + partition);
         }
 
-        public int getPartitionForCuboidId(byte[] key, boolean enableSharding) {
+        public int getPartitionForCuboidId(byte[] key) {
             long cuboidId = Bytes.toLong(key, RowConstants.ROWKEY_SHARDID_LEN, RowConstants.ROWKEY_CUBOIDID_LEN);
-
             List<Integer> partitions = cuboidPartitions.get(cuboidId);
-            if (enableSharding) {
-                short shardId = (short) BytesUtil.readShort(key, 0, RowConstants.ROWKEY_SHARDID_LEN);
-                return partitions.get(shardId % partitions.size());
-            } else {
-                return partitions.get(mod(key, 0, RowConstants.ROWKEY_SHARD_AND_CUBOID_LEN, partitions.size()));
-            }
+            int partitionKey = mod(key, RowConstants.ROWKEY_COL_DEFAULT_LENGTH, key.length, partitions.size());
+
+            return partitions.get(partitionKey);
         }
 
         private int mod(byte[] src, int start, int end, int total) {
@@ -333,7 +330,7 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
         private int estimateCuboidPartitionNum(long cuboidId, CubeStatsReader cubeStatsReader, KylinConfig kylinConfig) {
             double cuboidSize = cubeStatsReader.estimateCuboidSize(cuboidId);
             float rddCut = kylinConfig.getSparkRDDPartitionCutMB();
-            int partition = (int) (cuboidSize / rddCut);
+            int partition = (int) (cuboidSize / (rddCut * 10));
             partition = Math.max(kylinConfig.getSparkMinPartition(), partition);
             partition = Math.min(kylinConfig.getSparkMaxPartition(), partition);
             logger.info("cuboid:{}, est_size:{}, partitions:{}", cuboidId, cuboidSize, partition);
@@ -415,6 +412,7 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
                 synchronized (SparkCubeParquet.class) {
                     if (initialized == false) {
                         init();
+                        initialized = true;
                     }
                 }
             }
