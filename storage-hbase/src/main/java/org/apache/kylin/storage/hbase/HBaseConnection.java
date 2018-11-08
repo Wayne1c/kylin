@@ -225,6 +225,7 @@ public class HBaseConnection {
             }
         }
         conf.setStrings(DFSConfigKeys.DFS_NAMESERVICES, mainNameServices.toArray(new String[0]));
+
         // See YARN-3021, instruct RM skip renew token of hbase cluster name services
         conf.setStrings(JOB_NAMENODES_TOKEN_RENEWAL_EXCLUDE, nameServices.toArray(new String[0]));
     }

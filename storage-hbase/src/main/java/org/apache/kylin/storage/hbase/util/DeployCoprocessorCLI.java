@@ -276,7 +276,8 @@ public class DeployCoprocessorCLI {
 
     public static void addCoprocessorOnHTable(HTableDescriptor desc, Path hdfsCoprocessorJar) throws IOException {
         logger.info("Add coprocessor on " + desc.getNameAsString());
-        desc.addCoprocessor(CubeEndpointClass, hdfsCoprocessorJar, 1001, null);
+//        desc.addCoprocessor(CubeEndpointClass, hdfsCoprocessorJar, 1001, null);
+        desc.addCoprocessor(CubeEndpointClass, new Path(hdfsCoprocessorJar.toUri().getPath()), 1001, null);
     }
 
     public static boolean resetCoprocessor(String tableName, Admin hbaseAdmin, Path hdfsCoprocessorJar) throws IOException {

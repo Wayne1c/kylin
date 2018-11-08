@@ -23,7 +23,7 @@ import java.io.IOException;
 import org.apache.commons.cli.Options;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FsShell;
-import org.apache.hadoop.hbase.mapreduce.LoadIncrementalHFiles;
+import org.apache.hadoop.hbase.mapreduce.KylinLoadIncrementalHFiles;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.kylin.engine.mr.MRUtil;
 import org.apache.kylin.engine.mr.common.AbstractHadoopJob;
@@ -75,7 +75,7 @@ public class BulkLoadJob extends AbstractHadoopJob {
         newArgs[1] = tableName;
 
         logger.debug("Start to run LoadIncrementalHFiles");
-        int ret = MRUtil.runMRJob(new LoadIncrementalHFiles(conf), newArgs);
+        int ret = MRUtil.runMRJob(new KylinLoadIncrementalHFiles(conf), newArgs);
         logger.debug("End to run LoadIncrementalHFiles");
         return ret;
     }

@@ -66,10 +66,10 @@ public class CubeHFileJob extends AbstractHadoopJob {
             options.addOption(OPTION_OUTPUT_PATH);
             options.addOption(OPTION_HTABLE_NAME);
             parseOptions(options, args);
-
+//            Path partitionFilePath = new Path(getOptionValue(OPTION_PARTITION_FILE_PATH).replace("ns", "ns2"));
             Path partitionFilePath = new Path(getOptionValue(OPTION_PARTITION_FILE_PATH));
-
             Path output = new Path(getOptionValue(OPTION_OUTPUT_PATH));
+//            Path output = new Path(getOptionValue(OPTION_OUTPUT_PATH).replace("ns", "ns2"));
             String cubeName = getOptionValue(OPTION_CUBE_NAME);
 
             CubeManager cubeMgr = CubeManager.getInstance(KylinConfig.getInstanceFromEnv());
