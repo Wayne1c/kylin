@@ -34,6 +34,7 @@ import org.apache.hadoop.mapreduce.TaskID;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
 import org.apache.kylin.common.KylinConfig;
 import org.apache.kylin.common.util.AbstractApplication;
+import org.apache.kylin.common.util.ByteArray;
 import org.apache.kylin.common.util.Bytes;
 import org.apache.kylin.common.util.BytesUtil;
 import org.apache.kylin.common.util.HadoopUtil;
@@ -168,6 +169,8 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
             JavaPairRDD<Text, Text>[] allRDDs = new JavaPairRDD[totalLevels + 1];
 
             final Job job = Job.getInstance(sConf.get());
+            logger.info("Input path: {}", inputPath);
+            logger.info("Output path: {}", outputPath);
 
             // Read from cuboid and save to parquet
             for (int level = 0; level <= totalLevels; level++) {
@@ -203,7 +206,6 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
 
         logger.info("CuboidToPartitionMapping: {}", cuboidToPartitionMapping.toString());
 
-        JavaPairRDD<Text, Text> repartitionedRDD = rdd.partitionBy(new CuboidPartitioner(cuboidToPartitionMapping, cubeSeg.isEnableSharding()));
 
         String output = BatchCubingJobBuilder2.getCuboidOutputPathsByLevel(parquetOutput, level);
 
@@ -213,18 +215,17 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
         CustomParquetOutputFormat.setWriteSupportClass(job, GroupWriteSupport.class);
         CustomParquetOutputFormat.setCuboidToPartitionMapping(job, cuboidToPartitionMapping);
 
-        JavaPairRDD<Void, Group> groupRDD = repartitionedRDD.mapToPair(new GenerateGroupRDDFunction(cubeName, cubeSeg.getUuid(), metaUrl, new SerializableConfiguration(job.getConfiguration()), colTypeMap, meaTypeMap));
+        JavaPairRDD<Void, Group> groupRDD = rdd.partitionBy(new CuboidPartitioner(cuboidToPartitionMapping))
+                                                .mapToPair(new GenerateGroupRDDFunction(cubeName, cubeSeg.getUuid(), metaUrl, new SerializableConfiguration(job.getConfiguration()), colTypeMap, meaTypeMap));
 
         groupRDD.saveAsNewAPIHadoopDataset(job.getConfiguration());
     }
 
     static class CuboidPartitioner extends Partitioner {
         private CuboidToPartitionMapping mapping;
-        private boolean enableSharding;
 
-        public CuboidPartitioner(CuboidToPartitionMapping cuboidToPartitionMapping, boolean enableSharding) {
+        public CuboidPartitioner(CuboidToPartitionMapping cuboidToPartitionMapping) {
             this.mapping = cuboidToPartitionMapping;
-            this.enableSharding =enableSharding;
         }
 
         @Override
@@ -447,6 +448,10 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
         }
 
         private void parseColValue(final Group group, final TblColRef colRef, final String value) {
+            if (value==null) {
+                logger.info("value is null");
+                return;
+            }
             switch (colTypeMap.get(colRef)) {
                 case "int":
                     group.append(colRef.getTableAlias() + "_" + colRef.getName(), Integer.valueOf(value));
@@ -461,6 +466,10 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
         }
 
         private void parseMeaValue(final Group group, final MeasureDesc measureDesc, final byte[] value, final int offset, final int length) throws IOException {
+            if (value==null) {
+                logger.info("value is null");
+                return;
+            }
             switch (meaTypeMap.get(measureDesc)) {
                 case "long":
                     group.append(measureDesc.getName(), BytesUtil.readVLong(ByteBuffer.wrap(value, offset, length)));
