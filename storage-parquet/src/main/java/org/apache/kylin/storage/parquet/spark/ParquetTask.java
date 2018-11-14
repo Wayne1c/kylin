@@ -143,13 +143,14 @@ public class ParquetTask implements Serializable {
     }
 
     public Iterator<Object[]> executeTask() {
-        logger.info("Start to visit cube data with Spark <<<<<<");
+        logger.info("Start to visit cube data with Spark SQL <<<<<<");
 
         SQLContext sqlContext = new SQLContext(SparderEnv.getSparkSession().sparkContext());
 
-        Dataset dataset = sqlContext.read().parquet(parquetPaths);
+        Dataset<Row> dataset = sqlContext.read().parquet(parquetPaths);
         ImmutableBitSet dimensions = scanRequest.getDimensions();
         ImmutableBitSet metrics = scanRequest.getAggrMetrics();
+        ImmutableBitSet groupBy = scanRequest.getAggrGroupBy();
 
         // select
         Column[] selectColumn = getSelectColumn(dimensions, metrics, mapping);
@@ -158,7 +159,7 @@ public class ParquetTask implements Serializable {
         // where
         String where = scanRequest.getFilterPushDownSQL();
         if (where != null) {
-            dataset.where(where);
+            dataset = dataset.filter(where);
         }
 
         //groupby agg
@@ -172,7 +173,7 @@ public class ParquetTask implements Serializable {
         }
 
         // sort
-        dataset = dataset.sort(getSortColumn(dimensions, mapping));
+        dataset = dataset.sort(getSortColumn(groupBy, mapping));
 
         JavaRDD<Row> rowRDD = dataset.javaRDD();
 
@@ -190,7 +191,6 @@ public class ParquetTask implements Serializable {
         logger.info("partitions: {}", objRDD.getNumPartitions());
 
         List<Object[]> result = objRDD.collect();
-
         return result.iterator();
     }
 

@@ -85,6 +85,7 @@ public class BuildCubeWithEngine {
     protected ExecutableManager jobService;
     private static boolean fastBuildMode = false;
     private static int engineType;
+    private static int storageType;
 
     private static final Logger logger = LoggerFactory.getLogger(BuildCubeWithEngine.class);
 
@@ -130,9 +131,13 @@ public class BuildCubeWithEngine {
         String specifiedEngineType = System.getProperty("engineType");
         if (StringUtils.isNotEmpty(specifiedEngineType)) {
             engineType = Integer.parseInt(specifiedEngineType);
-        } else {
-            engineType = 2;
         }
+
+        String specifiedStorageType = System.getProperty("storageType");
+        if (StringUtils.isNotEmpty(specifiedEngineType)) {
+            storageType = Integer.parseInt(specifiedStorageType);
+        }
+        logger.info("==storageType: " + specifiedStorageType);
 
         System.setProperty(KylinConfig.KYLIN_CONF, confDir);
         System.setProperty("SPARK_HOME", "/usr/local/spark"); // need manually create and put spark to this folder on Jenkins
@@ -169,14 +174,6 @@ public class BuildCubeWithEngine {
         return "true".equalsIgnoreCase(fastModeStr);
     }
 
-    private static boolean isParquetStorage() {
-        String storageEngine = System.getProperty("storageEngine");
-        if (storageEngine != null && "parquet".equalsIgnoreCase(storageEngine)) {
-            return true;
-        }
-        return false;
-    }
-
     protected void deployEnv() throws IOException {
         DeployUtil.initCliWorkDir();
         DeployUtil.deployMetadata();
@@ -202,6 +199,9 @@ public class BuildCubeWithEngine {
         }
 
         cubeDescManager = CubeDescManager.getInstance(kylinConfig);
+
+        // update enginType and storageTpye
+        updateCubeDesc("ci_inner_join_cube", "ci_left_join_cube");
     }
 
     public void after() {
@@ -318,7 +318,7 @@ public class BuildCubeWithEngine {
         long date6 = f.parse("2024-01-01").getTime();
 
         if (fastBuildMode)
-            return buildSegment(cubeName, date1, date6);
+            return buildSegment(cubeName, date1, date4);
 
         if (!buildSegment(cubeName, date1, date2))
             return false;
@@ -326,7 +326,7 @@ public class BuildCubeWithEngine {
         if (!buildSegment(cubeName, date2, date3))
             return false;
         checkNormalSegRangeInfo(cubeManager.getCube(cubeName));
-        if (!isParquetStorage() && !optimizeCube(cubeName))
+        if (!optimizeCube(cubeName))
             return false;
         checkNormalSegRangeInfo(cubeManager.getCube(cubeName));
         if (!buildSegment(cubeName, date3, date4))
@@ -339,10 +339,10 @@ public class BuildCubeWithEngine {
             return false;
         checkEmptySegRangeInfo(cubeManager.getCube(cubeName));
 
-        if (!isParquetStorage() && !mergeSegment(cubeName, date2, date4)) // merge 2 normal segments
+        if (!mergeSegment(cubeName, date2, date4)) // merge 2 normal segments
             return false;
         checkNormalSegRangeInfo(cubeManager.getCube(cubeName));
-        if (!isParquetStorage() && !mergeSegment(cubeName, date2, date5)) // merge normal and empty
+        if (!mergeSegment(cubeName, date2, date5)) // merge normal and empty
             return false;
         checkNormalSegRangeInfo(cubeManager.getCube(cubeName));
 
@@ -360,12 +360,30 @@ public class BuildCubeWithEngine {
         return doBuildAndMergeOnCube(cubeName);
     }
 
-    @SuppressWarnings("unused")
     private void updateCubeEngineType(String cubeName) throws IOException {
-        CubeDesc cubeDesc = cubeDescManager.getCubeDesc(cubeName);
-        if (cubeDesc.getEngineType() != engineType) {
-            cubeDesc.setEngineType(engineType);
-            cubeDescManager.updateCubeDesc(cubeDesc);
+        if (engineType != 0) {
+            CubeDesc cubeDesc = cubeDescManager.getCubeDesc(cubeName);
+            if (cubeDesc.getEngineType() != engineType) {
+                cubeDesc.setEngineType(engineType);
+                cubeDescManager.updateCubeDesc(cubeDesc);
+            }
+        }
+    }
+
+    private void updateCubeStorageType(String cubeName) throws IOException {
+        if (storageType != 0) {
+            CubeDesc cubeDesc = cubeDescManager.getCubeDesc(cubeName);
+            if (cubeDesc.getStorageType() != storageType) {
+                cubeDesc.setStorageType(storageType);
+                cubeDescManager.updateCubeDesc(cubeDesc);
+            }
+        }
+    }
+
+    private void updateCubeDesc(String... cubeNames) throws IOException {
+        for (String cubeName : cubeNames) {
+            updateCubeEngineType(cubeName);
+            updateCubeStorageType(cubeName);
         }
     }
 

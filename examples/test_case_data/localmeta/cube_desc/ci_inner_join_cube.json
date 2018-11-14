@@ -567,7 +567,7 @@
   "auto_merge_time_ranges": null,
   "retention_range": 0,
   "engine_type": 4,
-  "storage_type": 4,
+  "storage_type": 2,
   "override_kylin_properties": {
     "kylin.cube.algorithm": "LAYER"
   },

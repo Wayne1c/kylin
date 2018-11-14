@@ -95,28 +95,20 @@ class SparderAggFun(funcName: String, dataTp: org.apache.kylin.metadata.datatype
 
   override def merge(buffer: MutableAggregationBuffer, input: Row): Unit = {
     if (!input.isNullAt(0)) {
-      //byteBuffer.clear()
       try {
         val byteArray = input.apply(0).asInstanceOf[Array[Byte]]
         if (byteArray.length == 0) {
           return
         }
+        val oldValue = if(buffer.isNullAt(0)) null else serializer.deserialize(ByteBuffer.wrap(buffer.apply(0).asInstanceOf[Array[Byte]]))
         val newValue = serializer.deserialize(ByteBuffer.wrap(byteArray))
-        aggregator.aggregate(newValue)
 
-        val finalValue = aggregator.getState
-        if (finalValue != null) {
+        val aggedValue = aggregator.aggregate(oldValue, newValue)
+
+        if (aggedValue != null) {
           byteBuffer.clear()
-          serializer.serialize(finalValue, byteBuffer)
-        }
-
-        if (buffer.isNullAt(0)) {
+          serializer.serialize(aggedValue, byteBuffer)
           buffer.update(0, byteBuffer.array().slice(0, byteBuffer.position()))
-          if (inputSchema.length > 1) {
-            if (!input.isNullAt(1)) {
-              buffer.update(1, input.get(1))
-            }
-          }
         }
       } catch {
         case e: Exception =>
@@ -132,15 +124,8 @@ class SparderAggFun(funcName: String, dataTp: org.apache.kylin.metadata.datatype
 
   override def evaluate(buffer: Row): Any = {
     if (buffer.isNullAt(0)) {
-      // If the buffer value is still null, we return null.
       null
-
     } else {
-      // Otherwise, the intermediate sum is the final result.
-
-      //val x = serializer.deserialize(ByteBuffer.wrap(buffer.apply(0).asInstanceOf[Array[Byte]]))
-
-      //scalastyle:off
       val ret = dataTp.getName match {
         case dt if dt.startsWith("percentile") => buffer.apply(0).asInstanceOf[Array[Byte]]
         case "hllc" => buffer.apply(0).asInstanceOf[Array[Byte]]

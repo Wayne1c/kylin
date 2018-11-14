@@ -6,15 +6,15 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
-*/
+ */
 
 package org.apache.kylin.query;
 
@@ -31,7 +31,6 @@ import org.apache.kylin.common.KylinVersion;
 import org.apache.kylin.common.debug.BackdoorToggles;
 import org.apache.kylin.common.exceptions.KylinTimeoutException;
 import org.apache.kylin.gridtable.StorageSideBehavior;
-import org.apache.kylin.junit.SparkTestRunner;
 import org.apache.kylin.metadata.realization.RealizationType;
 import org.apache.kylin.query.routing.Candidate;
 import org.apache.kylin.query.routing.rules.RemoveBlackoutRealizationsRule;
@@ -45,24 +44,15 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.junit.rules.TestRule;
-import org.junit.runner.Description;
-import org.junit.runner.RunWith;
-import org.junit.runners.model.Statement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Maps;
 
-//@Ignore("KylinQueryTest is contained by ITCombinationTest")
-@RunWith(SparkTestRunner.class)
+@Ignore("KylinQueryTest is contained by ITCombinationTest")
 public class ITKylinQueryTest extends KylinTestBase {
 
     private static final Logger logger = LoggerFactory.getLogger(ITKylinQueryTest.class);
-    private static final String[] parquetSkipTests = new String[] {"testTimeoutQuery"};
-
-    @Rule
-    public TestRule parquetSkipRule = new ParquetSkipRule();
 
     @Rule
     public ExpectedException thrown = ExpectedException.none();
@@ -76,7 +66,7 @@ public class ITKylinQueryTest extends KylinTestBase {
         priorities.put(RealizationType.INVERTED_INDEX, 0);
         Candidate.setPriorities(priorities);
 
-        joinType = "inner";
+        joinType = "left";
 
         setupAll();
     }
@@ -89,7 +79,6 @@ public class ITKylinQueryTest extends KylinTestBase {
     }
 
     @Test
-    @Ignore
     public void testTimeoutQuery() throws Exception {
         try {
 
@@ -134,7 +123,6 @@ public class ITKylinQueryTest extends KylinTestBase {
 
     //don't try to ignore this test, try to clean your "temp" folder
     @Test
-    @Ignore
     public void testTempQuery() throws Exception {
         try {
             PRINT_RESULT = true;
@@ -149,7 +137,7 @@ public class ITKylinQueryTest extends KylinTestBase {
     public void testSingleRunQuery() throws Exception {
         System.setProperty("log4j.configuration", "file:../build/conf/kylin-tools-log4j.properties");
 
-        String queryFileName = getQueryFolderPrefix() + "src/test/resources/query/sql_verifyCount/query01.sql";
+        String queryFileName = getQueryFolderPrefix() + "src/test/resources/query/sql_verifyCount/query02.sql";
 
         File sqlFile = new File(queryFileName);
         if (sqlFile.exists()) {
@@ -179,7 +167,6 @@ public class ITKylinQueryTest extends KylinTestBase {
 
     //h2 cannot run these queries
     @Test
-    @Ignore
     public void testH2Uncapable() throws Exception {
         batchExecuteQuery(getQueryFolderPrefix() + "src/test/resources/query/sql_h2_uncapable");
     }
@@ -190,19 +177,16 @@ public class ITKylinQueryTest extends KylinTestBase {
     }
 
     @Test
-    @Ignore
     public void testSnowflakeQuery() throws Exception {
         execAndCompQuery(getQueryFolderPrefix() + "src/test/resources/query/sql_snowflake", null, true);
     }
 
     @Test
-    @Ignore
     public void testDateTimeQuery() throws Exception {
         execAndCompQuery(getQueryFolderPrefix() + "src/test/resources/query/sql_datetime", null, true);
     }
 
     @Test
-    @Ignore
     public void testExtendedColumnQuery() throws Exception {
         execAndCompQuery(getQueryFolderPrefix() + "src/test/resources/query/sql_extended_column", null, true);
     }
@@ -218,7 +202,6 @@ public class ITKylinQueryTest extends KylinTestBase {
     }
 
     @Test
-    @Ignore
     public void testVerifyCountQueryWithPrepare() throws Exception {
         try {
             Map<String, String> toggles = Maps.newHashMap();
@@ -233,13 +216,11 @@ public class ITKylinQueryTest extends KylinTestBase {
     }
 
     @Test
-    @Ignore
     public void testVerifyContentQuery() throws Exception {
         verifyResultContent(getQueryFolderPrefix() + "src/test/resources/query/sql_verifyContent");
     }
 
     @Test
-    @Ignore
     public void testOrderByQuery() throws Exception {
         execAndCompQuery(getQueryFolderPrefix() + "src/test/resources/query/sql_orderby", null, true);
         // FIXME
@@ -249,13 +230,11 @@ public class ITKylinQueryTest extends KylinTestBase {
     }
 
     @Test
-    @Ignore
     public void testLookupQuery() throws Exception {
         execAndCompQuery(getQueryFolderPrefix() + "src/test/resources/query/sql_lookup", null, true);
     }
 
     @Test
-    @Ignore
     public void testJoinCastQuery() throws Exception {
         execAndCompQuery(getQueryFolderPrefix() + "src/test/resources/query/sql_join", null, true);
     }
@@ -276,19 +255,16 @@ public class ITKylinQueryTest extends KylinTestBase {
     }
 
     @Test
-    @Ignore
     public void testCachedQuery() throws Exception {
         execAndCompQuery(getQueryFolderPrefix() + "src/test/resources/query/sql_cache", null, true);
     }
 
     @Test
-    @Ignore
     public void testDerivedColumnQuery() throws Exception {
         execAndCompQuery(getQueryFolderPrefix() + "src/test/resources/query/sql_derived", null, true);
     }
 
     @Test
-    @Ignore
     public void testDistinctCountQuery() throws Exception {
         if ("left".equalsIgnoreCase(joinType)) {
             batchExecuteQuery(getQueryFolderPrefix() + "src/test/resources/query/sql_distinct");
@@ -297,13 +273,12 @@ public class ITKylinQueryTest extends KylinTestBase {
 
     @Test
     public void testTopNQuery() throws Exception {
-        if ("inner".equalsIgnoreCase(joinType)) {
+        if ("left".equalsIgnoreCase(joinType)) {
             this.execAndCompQuery(getQueryFolderPrefix() + "src/test/resources/query/sql_topn", null, true);
         }
     }
 
     @Test
-    @Ignore
     public void testPreciselyDistinctCountQuery() throws Exception {
         if ("left".equalsIgnoreCase(joinType)) {
             execAndCompQuery(getQueryFolderPrefix() + "src/test/resources/query/sql_distinct_precisely", null, true);
@@ -311,7 +286,6 @@ public class ITKylinQueryTest extends KylinTestBase {
     }
 
     @Test
-    @Ignore
     public void testIntersectCountQuery() throws Exception {
         // cannot compare coz H2 does not support intersect count yet..
         if ("left".equalsIgnoreCase(joinType)) {
@@ -320,7 +294,6 @@ public class ITKylinQueryTest extends KylinTestBase {
     }
 
     @Test
-    @Ignore
     public void testMultiModelQuery() throws Exception {
         if ("left".equalsIgnoreCase(joinType)) {
             joinType = "default";
@@ -330,31 +303,26 @@ public class ITKylinQueryTest extends KylinTestBase {
     }
 
     @Test
-    @Ignore
     public void testDimDistinctCountQuery() throws Exception {
         execAndCompQuery(getQueryFolderPrefix() + "src/test/resources/query/sql_distinct_dim", null, true);
     }
 
     @Test
-    @Ignore
     public void testStreamingTableQuery() throws Exception {
         execAndCompQuery(getQueryFolderPrefix() + "src/test/resources/query/sql_streaming", null, true);
     }
 
     @Test
-    @Ignore
     public void testTableauQuery() throws Exception {
         execAndCompResultSize(getQueryFolderPrefix() + "src/test/resources/query/sql_tableau", null, true);
     }
 
     @Test
-    @Ignore
     public void testSubQuery() throws Exception {
         execAndCompQuery(getQueryFolderPrefix() + "src/test/resources/query/sql_subquery", null, true);
     }
 
     @Test
-    @Ignore
     public void testCaseWhen() throws Exception {
         execAndCompQuery(getQueryFolderPrefix() + "src/test/resources/query/sql_casewhen", null, true);
     }
@@ -366,13 +334,11 @@ public class ITKylinQueryTest extends KylinTestBase {
     }
 
     @Test
-    @Ignore
     public void testH2Query() throws Exception {
         this.execQueryUsingH2(getQueryFolderPrefix() + "src/test/resources/query/sql_orderby", false);
     }
 
     @Test
-    @Ignore
     public void testInvalidQuery() throws Exception {
 
         logger.info("-------------------- Test Invalid Query --------------------");
@@ -395,7 +361,6 @@ public class ITKylinQueryTest extends KylinTestBase {
     }
 
     @Test
-    @Ignore
     public void testDynamicQuery() throws Exception {
         execAndCompDynamicQuery(getQueryFolderPrefix() + "src/test/resources/query/sql_dynamic", null, true);
     }
@@ -421,21 +386,18 @@ public class ITKylinQueryTest extends KylinTestBase {
     }
 
     @Test
-    @Ignore
     public void testGroupingQuery() throws Exception {
         // cannot compare coz H2 does not support grouping set yet..
         this.batchExecuteQuery(getQueryFolderPrefix() + "src/test/resources/query/sql_grouping");
     }
 
     @Test
-    @Ignore
     public void testWindowQuery() throws Exception {
         // cannot compare coz H2 does not support window function yet..
         this.batchExecuteQuery(getQueryFolderPrefix() + "src/test/resources/query/sql_window");
     }
 
     @Test
-    @Ignore
     public void testVersionQuery() throws Exception {
         String expectVersion = KylinVersion.getCurrentVersion().toString();
         logger.info("---------- verify expect version: " + expectVersion);
@@ -454,7 +416,6 @@ public class ITKylinQueryTest extends KylinTestBase {
     }
 
     @Test
-    @Ignore
     public void testPercentileQuery() throws Exception {
         batchExecuteQuery(getQueryFolderPrefix() + "src/test/resources/query/sql_percentile");
     }
@@ -472,7 +433,6 @@ public class ITKylinQueryTest extends KylinTestBase {
     }
 
     @Test
-    @Ignore
     public void testDictionaryEnumerator() throws Exception {
         boolean ifDictEnumeratorEnabled = config.isDictionaryEnumeratorEnabled();
         if (!ifDictEnumeratorEnabled) {
@@ -485,7 +445,6 @@ public class ITKylinQueryTest extends KylinTestBase {
     }
 
     @Test
-    @Ignore
     public void testOrdinalQuery() throws Exception {
         String sqlConformance = config.getCalciteExtrasProperties().getProperty("conformance");
         if (!"LENIENT".equalsIgnoreCase(sqlConformance)) {
@@ -498,43 +457,17 @@ public class ITKylinQueryTest extends KylinTestBase {
     }
 
     @Test
-    @Ignore
     public void testValues() throws Exception {
         execAndCompQuery(getQueryFolderPrefix() + "src/test/resources/query/sql_values", null, true);
     }
 
-
-
     @Test
-    @Ignore
     public void testPlan() throws Exception {
         String originProp = System.getProperty("calcite.debug");
         System.setProperty("calcite.debug", "true");
         execAndCompPlan(getQueryFolderPrefix() + "src/test/resources/query/sql_plan", null, true);
         if (originProp == null || "false".equals(originProp))
             System.setProperty("calcite.debug", "false");
-    }
-
-    static class ParquetSkipRule implements TestRule {
-
-        @Override
-        public Statement apply(final Statement statement, final Description description) {
-            return new Statement() {
-                @Override
-                public void evaluate() throws Throwable {
-                    String methodName = description.getMethodName();
-                    boolean skip = false;
-                    for (String testName : parquetSkipTests) {
-                        if (testName.equals(methodName)) {
-                            skip = true;
-                        }
-                    }
-                    if (!skip) {
-                        statement.evaluate();
-                    }
-                }
-            };
-        }
     }
 }
                                                   

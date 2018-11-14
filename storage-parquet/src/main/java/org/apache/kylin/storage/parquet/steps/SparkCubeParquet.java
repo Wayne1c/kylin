@@ -405,6 +405,7 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
             factory = new SimpleGroupFactory(GroupWriteSupport.getSchema(conf.get()));
             measureCodec = new BufferedMeasureCodec(cubeDesc.getMeasures());
             serializer = new BigDecimalSerializer(DataType.getType("decimal"));
+            initialized = true;
         }
 
         @Override
@@ -504,14 +505,8 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
                 colTypeMap.put(colRef, "long");
             } else if (dimEnc instanceof FixedLenDimEnc || dimEnc instanceof FixedLenHexDimEnc) {
                 org.apache.kylin.metadata.datatype.DataType colDataType = colRef.getType();
-                if (colDataType.isNumberFamily() || colDataType.isDateTimeFamily()){
-                    builder.optional(PrimitiveType.PrimitiveTypeName.INT64).named(getColName(colRef));
-                    colTypeMap.put(colRef, "long");
-                } else {
-                    // stringFamily && default
-                    builder.optional(PrimitiveType.PrimitiveTypeName.BINARY).as(OriginalType.UTF8).named(getColName(colRef));
-                    colTypeMap.put(colRef, "string");
-                }
+                builder.optional(PrimitiveType.PrimitiveTypeName.BINARY).as(OriginalType.UTF8).named(getColName(colRef));
+                colTypeMap.put(colRef, "string");
             } else {
                 builder.optional(PrimitiveType.PrimitiveTypeName.INT32).named(getColName(colRef));
                 colTypeMap.put(colRef, "int");

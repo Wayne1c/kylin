@@ -22,9 +22,9 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
 
+import org.apache.kylin.junit.SparkTestRunnerWithParametersFactory;
 import org.apache.kylin.metadata.realization.RealizationType;
 import org.apache.kylin.query.routing.Candidate;
-import org.apache.kylin.query.routing.rules.RemoveBlackoutRealizationsRule;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
@@ -37,23 +37,19 @@ import com.google.common.collect.Maps;
 /**
  */
 @RunWith(Parameterized.class)
-public class ITCombinationTest extends ITKylinQueryTest {
+@Parameterized.UseParametersRunnerFactory(SparkTestRunnerWithParametersFactory.class)
+public class ITCombination2Test extends ITKylinQuery2Test {
 
-    private static final Logger logger = LoggerFactory.getLogger(ITCombinationTest.class);
+    private static final Logger logger = LoggerFactory.getLogger(ITCombination2Test.class);
 
     @BeforeClass
     public static void setUp() {
-        Map<RealizationType, Integer> priorities = Maps.newHashMap();
-        priorities.put(RealizationType.HYBRID, 0);
-        priorities.put(RealizationType.CUBE, 0);
-        Candidate.setPriorities(priorities);
-
-        logger.info("setUp in ITCombinationTest");
+        logger.info("setUp in ITCombination2Test");
     }
 
     @AfterClass
     public static void tearDown() {
-        logger.info("tearDown in ITCombinationTest");
+        logger.info("tearDown in ITCombination2Test");
         clean();
         Candidate.restorePriorities();
     }
@@ -71,15 +67,14 @@ public class ITCombinationTest extends ITKylinQueryTest {
         });
     }
 
-    public ITCombinationTest(String joinType, String coprocessorToggle, String queryEngine) throws Exception {
-
+    public ITCombination2Test(String joinType, String coprocessorToggle, String queryEngine) throws Exception {
         logger.info("Into combination join type: " + joinType + ", coprocessor toggle: " + coprocessorToggle + ", query engine: " + queryEngine);
-
-        ITKylinQueryTest.clean();
-
-        ITKylinQueryTest.joinType = joinType;
-        ITKylinQueryTest.setupAll();
-
-        RemoveBlackoutRealizationsRule.blackList.clear();
+        Map<RealizationType, Integer> priorities = Maps.newHashMap();
+        priorities.put(RealizationType.HYBRID, 0);
+        priorities.put(RealizationType.CUBE, 0);
+        priorities.put(RealizationType.INVERTED_INDEX, 0);
+        Candidate.setPriorities(priorities);
+        ITKylinQuery2Test.joinType = joinType;
+        setupAll();
     }
 }

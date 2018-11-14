@@ -56,7 +56,7 @@ public class SparkClassLoader extends URLClassLoader {
             // logging
             "org.apache.commons.logging", "org.apache.log4j", "org.slf4j", "org.apache.hadoop",
             // Hadoop/HBase/ZK:
-            "io.kyligence", "org.apache.kylin", "com.intellij", "org.apache.calcite" };
+            "org.apache.kylin", "com.intellij", "org.apache.calcite" };
 
     private static final Set<String> classNotFoundCache = new HashSet<>();
     private static Logger logger = LoggerFactory.getLogger(SparkClassLoader.class);
