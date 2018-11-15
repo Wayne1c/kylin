@@ -358,7 +358,7 @@
             <id>parquetStorage</id>
             <properties>
                 <storageType>4</storageType>
-                <excludeTest>**/ITCombinationTest.java,**/ITFailfastQueryTest.java,**/ITJDBCDriverTest.java</excludeTest>
+                <excludeTest>**/ITCombinationTest.java,**/ITFailfastQueryTest.java,**/ITJDBCDriverTest.java,**/ITAclTableMigrationToolTest.java</excludeTest>
             </properties>
         </profile>
     </profiles>
