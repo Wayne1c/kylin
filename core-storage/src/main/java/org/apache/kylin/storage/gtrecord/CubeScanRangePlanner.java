@@ -109,9 +109,9 @@ public class CubeScanRangePlanner extends ScanRangePlannerBase {
         Set<TblColRef> groupByPushDown = Sets.newHashSet(groupByDims);
         groupByPushDown.addAll(dynGroupsDims);
 
-        this.gtFilter = GTUtil.convertFilterColumnsAndConstants(filter, gtInfo, mapping.getDim2gt(), groupByPushDown, true);
+        this.gtFilter = GTUtil.convertFilterColumnsAndConstants(filter, gtInfo, mapping.getDim2gt(), groupByPushDown);
 
-        TupleFilter convertedFilter = GTUtil.convertFilterColumnsAndConstants(filter, gtInfo, mapping.getDim2gt(), groupByPushDown);
+        TupleFilter convertedFilter = GTUtil.convertFilterColumnsAndConstants(filter, gtInfo, mapping.getDim2gt(), groupByPushDown, true);
 
         this.havingFilter = havingFilter;
 
