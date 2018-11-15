@@ -347,7 +347,7 @@
             <id>hbaseStorage</id>
             <properties>
                 <storageType>2</storageType>
-                <excludeTest>ITCombination2Test.java</excludeTest>
+                <excludeTest>**/ITCombination2Test.java,**/ITFailfastQuery2Test.java,**/ITJDBCDriver2Test.java</excludeTest>
             </properties>
             <activation>
                 <activeByDefault>true</activeByDefault>
@@ -358,7 +358,7 @@
             <id>parquetStorage</id>
             <properties>
                 <storageType>4</storageType>
-                <excludeTest>ITCombinationTest.java</excludeTest>
+                <excludeTest>**/ITCombinationTest.java,**/ITFailfastQueryTest.java,**/ITJDBCDriverTest.java</excludeTest>
             </properties>
         </profile>
     </profiles>
@@ -408,7 +408,7 @@
                 <configuration>
                     <excludes>
                         <exclude>**/*$*</exclude>
-                        <exclude>**/${excludeTest}</exclude>
+                        <exclude>${excludeTest}</exclude>
                     </excludes>
                     <systemProperties>
                         <property>
