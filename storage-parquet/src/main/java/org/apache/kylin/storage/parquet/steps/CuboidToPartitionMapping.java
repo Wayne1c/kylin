@@ -131,11 +131,11 @@ public class CuboidToPartitionMapping implements Serializable {
 
     private int estimateCuboidPartitionNum(long cuboidId, CubeStatsReader cubeStatsReader, KylinConfig kylinConfig) {
         double cuboidSize = cubeStatsReader.estimateCuboidSize(cuboidId);
-        float rddCut = kylinConfig.getSparkRDDPartitionCutMB();
-        int partition = (int) (cuboidSize / (rddCut * 10));
-        //TODO refine cut
-        partition = Math.max(kylinConfig.getSparkMinPartition(), partition);
-        partition = Math.min(kylinConfig.getSparkMaxPartition(), partition);
+        float rddCut = kylinConfig.getParquetFileSizeMB();
+        int partition = (int) (cuboidSize / rddCut);
+        partition = Math.max(kylinConfig.getParquetMinPartitions(), partition);
+        partition = Math.min(kylinConfig.getParquetMaxPartitions(), partition);
+
         logger.info("cuboid:{}, est_size:{}, partitions:{}", cuboidId, cuboidSize, partition);
         return partition;
     }
