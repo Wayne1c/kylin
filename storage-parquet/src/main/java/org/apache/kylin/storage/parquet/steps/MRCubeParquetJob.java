@@ -150,7 +150,7 @@ public class MRCubeParquetJob extends AbstractHadoopJob {
 
         @Override
         public int getPartition(Text key, Text value, int numPartitions) {
-            return mapping.getPartitionForCuboidId(key.getBytes());
+            return mapping.getPartitionByKey(key.getBytes());
         }
 
         @Override

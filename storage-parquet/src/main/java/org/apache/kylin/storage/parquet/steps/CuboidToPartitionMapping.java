@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -59,10 +60,22 @@ public class CuboidToPartitionMapping implements Serializable {
         cuboidPartitions = Maps.newHashMap();
 
         Set<Long> allCuboidIds = cubeSeg.getCuboidScheduler().getAllCuboidIds();
-        CubeStatsReader cubeStatsReader = new CubeStatsReader(cubeSeg, kylinConfig);
 
+        CalculatePartitionId(cubeSeg, kylinConfig, allCuboidIds);
+    }
+
+    public CuboidToPartitionMapping(CubeSegment cubeSeg, KylinConfig kylinConfig, int level) throws IOException {
+        cuboidPartitions = Maps.newHashMap();
+
+        List<Long> layeredCuboids = cubeSeg.getCuboidScheduler().getCuboidsByLayer().get(level);
+
+        CalculatePartitionId(cubeSeg, kylinConfig, layeredCuboids);
+    }
+
+    private void CalculatePartitionId(CubeSegment cubeSeg, KylinConfig kylinConfig, Collection<Long> cuboidIds) throws IOException {
         int position = 0;
-        for (Long cuboidId : allCuboidIds) {
+        CubeStatsReader cubeStatsReader = new CubeStatsReader(cubeSeg, kylinConfig);
+        for (Long cuboidId : cuboidIds) {
             int partition = estimateCuboidPartitionNum(cuboidId, cubeStatsReader, kylinConfig);
             List<Integer> positions = Lists.newArrayListWithCapacity(partition);
 
@@ -100,10 +113,10 @@ public class CuboidToPartitionMapping implements Serializable {
         throw new IllegalArgumentException("No cuboidId for partition id: " + partition);
     }
 
-    public int getPartitionForCuboidId(byte[] key) {
+    public int getPartitionByKey(byte[] key) {
         long cuboidId = Bytes.toLong(key, RowConstants.ROWKEY_SHARDID_LEN, RowConstants.ROWKEY_CUBOIDID_LEN);
         List<Integer> partitions = cuboidPartitions.get(cuboidId);
-        int partitionKey = mod(key, RowConstants.ROWKEY_COL_DEFAULT_LENGTH, key.length, partitions.size());
+        int partitionKey = mod(key, RowConstants.ROWKEY_SHARD_AND_CUBOID_LEN, key.length, partitions.size());
 
         return partitions.get(partitionKey);
     }

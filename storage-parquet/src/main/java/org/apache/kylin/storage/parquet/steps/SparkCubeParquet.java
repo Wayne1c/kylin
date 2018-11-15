@@ -17,14 +17,10 @@
  */
 package org.apache.kylin.storage.parquet.steps;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
@@ -34,20 +30,16 @@ import org.apache.hadoop.mapreduce.TaskID;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
 import org.apache.kylin.common.KylinConfig;
 import org.apache.kylin.common.util.AbstractApplication;
-import org.apache.kylin.common.util.Bytes;
 import org.apache.kylin.common.util.HadoopUtil;
-import org.apache.kylin.common.util.JsonUtil;
 import org.apache.kylin.common.util.OptionsHelper;
 import org.apache.kylin.cube.CubeInstance;
 import org.apache.kylin.cube.CubeManager;
 import org.apache.kylin.cube.CubeSegment;
 import org.apache.kylin.cube.cuboid.Cuboid;
-import org.apache.kylin.cube.kv.RowConstants;
 import org.apache.kylin.dimension.IDimensionEncodingMap;
 import org.apache.kylin.engine.mr.BatchCubingJobBuilder2;
 import org.apache.kylin.engine.mr.common.AbstractHadoopJob;
 import org.apache.kylin.engine.mr.common.BatchConstants;
-import org.apache.kylin.engine.mr.common.CubeStatsReader;
 import org.apache.kylin.engine.mr.common.SerializableConfiguration;
 import org.apache.kylin.engine.spark.KylinSparkJobListener;
 import org.apache.kylin.engine.spark.SparkUtil;
@@ -69,7 +61,6 @@ import scala.Tuple2;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.List;
 import java.util.Map;
 
 
@@ -212,115 +203,6 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
         public int getPartition(Object key) {
             Text textKey = (Text)key;
             return mapping.getPartitionByKey(textKey.getBytes());
-        }
-    }
-
-    public static class CuboidToPartitionMapping implements Serializable {
-        private Map<Long, List<Integer>> cuboidPartitions;
-        private int partitionNum;
-
-        public CuboidToPartitionMapping(Map<Long, List<Integer>> cuboidPartitions) {
-            this.cuboidPartitions = cuboidPartitions;
-            int partitions = 0;
-            for (Map.Entry<Long, List<Integer>> entry : cuboidPartitions.entrySet()) {
-                partitions = partitions + entry.getValue().size();
-            }
-            this.partitionNum = partitions;
-        }
-
-        public CuboidToPartitionMapping(CubeSegment cubeSeg, KylinConfig kylinConfig, int level) throws IOException {
-            cuboidPartitions = Maps.newHashMap();
-
-            List<Long> layeredCuboids = cubeSeg.getCuboidScheduler().getCuboidsByLayer().get(level);
-            CubeStatsReader cubeStatsReader = new CubeStatsReader(cubeSeg, kylinConfig);
-
-            int position = 0;
-            for (Long cuboidId : layeredCuboids) {
-                int partition = estimateCuboidPartitionNum(cuboidId, cubeStatsReader, kylinConfig);
-                List<Integer> positions = Lists.newArrayListWithCapacity(partition);
-
-                for (int i = position; i < position + partition; i++) {
-                    positions.add(i);
-                }
-
-                cuboidPartitions.put(cuboidId, positions);
-                position = position + partition;
-            }
-
-            this.partitionNum = position;
-        }
-
-        public String serialize() throws JsonProcessingException {
-            return JsonUtil.writeValueAsString(cuboidPartitions);
-        }
-
-        public static CuboidToPartitionMapping deserialize(String jsonMapping) throws IOException {
-            Map<Long, List<Integer>> cuboidPartitions = JsonUtil.readValue(jsonMapping, new TypeReference<Map<Long, List<Integer>>>() {});
-            return new CuboidToPartitionMapping(cuboidPartitions);
-        }
-
-        public int getNumPartitions() {
-            return this.partitionNum;
-        }
-
-        public long getCuboidIdByPartition(int partition) {
-            for (Map.Entry<Long, List<Integer>> entry : cuboidPartitions.entrySet()) {
-                if (entry.getValue().contains(partition)) {
-                    return entry.getKey();
-                }
-            }
-
-            throw new IllegalArgumentException("No cuboidId for partition id: " + partition);
-        }
-
-        public int getPartitionByKey(byte[] key) {
-            long cuboidId = Bytes.toLong(key, RowConstants.ROWKEY_SHARDID_LEN, RowConstants.ROWKEY_CUBOIDID_LEN);
-            List<Integer> partitions = cuboidPartitions.get(cuboidId);
-            int partitionKey = mod(key, RowConstants.ROWKEY_COL_DEFAULT_LENGTH, key.length, partitions.size());
-
-            return partitions.get(partitionKey);
-        }
-
-        private int mod(byte[] src, int start, int end, int total) {
-            int sum = Bytes.hashBytes(src, start, end - start);
-            int mod = sum % total;
-            if (mod < 0)
-                mod += total;
-
-            return mod;
-        }
-
-        public int getPartitionNumForCuboidId(long cuboidId) {
-            return cuboidPartitions.get(cuboidId).size();
-        }
-
-        public String getPartitionFilePrefix(int partition) {
-            String prefix = "cuboid_";
-            long cuboid = getCuboidIdByPartition(partition);
-            int partNum = partition % getPartitionNumForCuboidId(cuboid);
-            prefix = prefix + cuboid + "_part" + partNum;
-
-            return prefix;
-        }
-
-        private int estimateCuboidPartitionNum(long cuboidId, CubeStatsReader cubeStatsReader, KylinConfig kylinConfig) {
-            double cuboidSize = cubeStatsReader.estimateCuboidSize(cuboidId);
-            float rddCut = kylinConfig.getSparkRDDPartitionCutMB();
-            int partition = (int) (cuboidSize / (rddCut * 10));
-            partition = Math.max(kylinConfig.getSparkMinPartition(), partition);
-            partition = Math.min(kylinConfig.getSparkMaxPartition(), partition);
-            logger.info("cuboid:{}, est_size:{}, partitions:{}", cuboidId, cuboidSize, partition);
-            return partition;
-        }
-
-        @Override
-        public String toString() {
-            StringBuilder sb = new StringBuilder();
-            for (Map.Entry<Long, List<Integer>> entry : cuboidPartitions.entrySet()) {
-                sb.append("cuboidId:").append(entry.getKey()).append(" [").append(StringUtils.join(entry.getValue(), ",")).append("]\n");
-            }
-
-            return sb.toString();
         }
     }
 
