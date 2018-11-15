@@ -67,7 +67,7 @@ public class TopNMeasureType extends MeasureType<TopNCounter<ByteArray>> {
 
         @Override
         public MeasureType<TopNCounter<ByteArray>> createMeasureType(String funcName, DataType dataType) {
-            return new TopNMeasureType(funcName, dataType);
+            return new TopNMeasureType(dataType);
         }
 
         @Override
@@ -90,7 +90,7 @@ public class TopNMeasureType extends MeasureType<TopNCounter<ByteArray>> {
 
     private final DataType dataType;
 
-    public TopNMeasureType(String funcName, DataType dataType) {
+    public TopNMeasureType(DataType dataType) {
         // note at query parsing phase, the data type may be null, because only function and parameters are known
         this.dataType = dataType;
     }
@@ -160,6 +160,11 @@ public class TopNMeasureType extends MeasureType<TopNCounter<ByteArray>> {
                         dataType.getPrecision() * TopNCounter.EXTRA_SPACE_RATE);
                 topNCounter.offer(key, counter);
                 return topNCounter;
+            }
+
+            @Override
+            public void reset() {
+
             }
 
             @Override

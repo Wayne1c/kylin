@@ -27,6 +27,8 @@ import org.junit.Test;
 
 public class QueryUtilTest extends LocalFileMetadataTestCase {
 
+    static final String catalog = "CATALOG";
+
     @Before
     public void setUp() throws Exception {
         this.createTestMetadata();
@@ -167,10 +169,10 @@ public class QueryUtilTest extends LocalFileMetadataTestCase {
     public void testRemoveCommentInSql() {
 
         String originSql = "select count(*) from test_kylin_fact where price > 10.0";
+        String originSql2 = "select count(*) from test_kylin_fact where TEST_COLUMN != 'not--a comment'";
 
         {
             String sqlWithComment = "-- comment \n" + originSql;
-
             Assert.assertEquals(originSql, QueryUtil.removeCommentInSql(sqlWithComment));
         }
 
@@ -221,14 +223,92 @@ public class QueryUtilTest extends LocalFileMetadataTestCase {
         }
 
         {
-            String sqlWithComment = "/* comment1 * \ncomment2 */ -- comment 3\n" + originSql + "-- comment 5";
+            String sqlWithComment = "/* comment1 * \ncomment2 */ -- comment 3\n" + originSql + "-- comment 5\n";
             Assert.assertEquals(originSql, QueryUtil.removeCommentInSql(sqlWithComment));
         }
+
+        {
+            String sqlWithComment2 = "/* comment1 * \ncomment2 */ -- comment 5\n" + originSql2 + "/* comment3 / comment4 */";
+            Assert.assertEquals(originSql2, QueryUtil.removeCommentInSql(sqlWithComment2));
+        }
+
+        {
+            String sqlWithComment2 = "/* comment1 * comment2 */ /* comment3 / comment4 */ -- comment 5\n" + originSql2;
+            Assert.assertEquals(originSql2, QueryUtil.removeCommentInSql(sqlWithComment2));
+        }
+
+        {
+            String sqlWithComment2 = "/* comment1 * comment2 */ " + originSql2;
+            Assert.assertEquals(originSql2, QueryUtil.removeCommentInSql(sqlWithComment2));
+        }
+
+        {
+            String sqlWithComment2 = "/* comment1/comment2 */ " + originSql2;
+            Assert.assertEquals(originSql2, QueryUtil.removeCommentInSql(sqlWithComment2));
+        }
+
+        {
+            String sqlWithComment2 = "-- \n -- comment \n" + originSql2;
+            Assert.assertEquals(originSql2, QueryUtil.removeCommentInSql(sqlWithComment2));
+        }
+
+        {
+            String sqlWithComment2 = "-- comment \n" + originSql2;
+            Assert.assertEquals(originSql2, QueryUtil.removeCommentInSql(sqlWithComment2));
+        }
+
+        {
+            String sqlWithComment2 = "-- comment \n -- comment\n" + originSql2;
+            Assert.assertEquals(originSql2, QueryUtil.removeCommentInSql(sqlWithComment2));
+        }
+
+        String content = "        --  One-line comment and /**range\n" +
+                "/*\n" +
+                "Multi-line comment\r\n" +
+                "--  Multi-line comment*/\n" +
+                "select price as " +
+                "/*\n" +
+                "Multi-line comment\r\n" +
+                "--  Multi-line comment*/\n" +
+                "revenue from /*One-line comment-- One-line comment*/ v_lineitem;";
+        String expectedContent = "select price as revenue from  v_lineitem;";
+        String trimmedContent = QueryUtil.removeCommentInSql(content).replaceAll("\n", "").trim();
+        Assert.assertEquals(trimmedContent, expectedContent);
     }
 
     @Test
     public void testUnknownErrorResponseMessage() {
         String msg = QueryUtil.makeErrorMsgUserFriendly(new NullPointerException());
         Assert.assertEquals("Unknown error.", msg);
+    }
+
+    @Test
+    public void testRemoveCatalog() {
+
+        String[] beforeRemoveSql = new String[] {
+                "select name, count(*) as cnt from schema1.user where bb.dd >2 group by name",
+                "select name, count(*) as cnt from .default2.user where dd >2 group by name",
+                "select name, count(*) as cnt from %s.default2.user where dd >2 group by name",
+                "select name, count(*) as cnt from %s.user.a.cu where dd >2 group by name",
+                "select name, count(*) as cnt from %s.default2.user where dd >2 group by name",
+                "select name, count() as cnt from %s.test.kylin_sales inner join " + "%s.test.kylin_account "
+                        + "ON kylin_sales.BUYER_ID=kylin_account.ACCOUNT_ID group by name",
+                "select schema1.table1.col1 from %s.schema1.table1" };
+        String[] afterRemoveSql = new String[] {
+                "select name, count(*) as cnt from schema1.user where bb.dd >2 group by name",
+                "select name, count(*) as cnt from .default2.user where dd >2 group by name",
+                "select name, count(*) as cnt from default2.user where dd >2 group by name",
+                "select name, count(*) as cnt from user.a.cu where dd >2 group by name",
+                "select name, count(*) as cnt from default2.user where dd >2 group by name",
+                "select name, count() as cnt from test.kylin_sales inner join " + "test.kylin_account "
+                        + "ON kylin_sales.BUYER_ID=kylin_account.ACCOUNT_ID group by name",
+                "select schema1.table1.col1 from schema1.table1" };
+        Assert.assertEquals(afterRemoveSql.length, beforeRemoveSql.length);
+        for (int i = 0; i < beforeRemoveSql.length; i++) {
+            String before = beforeRemoveSql[i];
+            before = before.replace("%s", catalog);
+            String after = afterRemoveSql[i];
+            Assert.assertEquals(after, QueryUtil.removeCatalog(before, catalog));
+        }
     }
 }

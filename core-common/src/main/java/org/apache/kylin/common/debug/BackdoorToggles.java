@@ -18,8 +18,13 @@
 
 package org.apache.kylin.common.debug;
 
+import java.io.IOException;
+import java.io.StringReader;
 import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
 
+import com.google.common.collect.Sets;
 import org.apache.commons.lang.StringUtils;
 import org.apache.kylin.common.util.Pair;
 
@@ -81,6 +86,10 @@ public class BackdoorToggles {
         return getBoolean(DEBUG_TOGGLE_DISABLE_QUERY_CACHE);
     }
 
+    public static boolean getDisableSegmentCache() {
+        return getBoolean(DEBUG_TOGGLE_DISABLE_QUERY_SEGMENT_CACHE);
+    }
+
     public static boolean getDisableFuzzyKey() {
         return getBoolean(DEBUG_TOGGLE_DISABLE_FUZZY_KEY);
     }
@@ -114,7 +123,7 @@ public class BackdoorToggles {
         if (v == null)
             return -1;
         else
-            return Integer.valueOf(v);
+            return Integer.parseInt(v);
     }
 
     public static Pair<Short, Short> getShardAssignment() {
@@ -157,6 +166,35 @@ public class BackdoorToggles {
     }
 
     /**
+     * get extra calcite props from jdbc client
+     */
+    public static Properties getJdbcDriverClientCalciteProps() {
+        Properties props = new Properties();
+        String propsStr = getString(JDBC_CLIENT_CALCITE_PROPS);
+        if (propsStr == null) {
+            return props;
+        }
+        try {
+            props.load(new StringReader(propsStr));
+        } catch (IOException ignored) {
+            // ignored
+        }
+        final Set<String> allowedPropsNames = Sets.newHashSet(
+                "caseSensitive",
+                "unquotedCasing",
+                "quoting",
+                "conformance"
+        );
+        // remove un-allowed props
+        for (String key : props.stringPropertyNames()) {
+            if (!allowedPropsNames.contains(key)) {
+                props.remove(key);
+            }
+        }
+        return props;
+    }
+
+    /**
      * set DEBUG_TOGGLE_DISABLE_FUZZY_KEY=true to disable fuzzy key for debug/profile usage
      *
      *
@@ -179,6 +217,18 @@ public class BackdoorToggles {
      }
      */
     public final static String DEBUG_TOGGLE_DISABLE_QUERY_CACHE = "DEBUG_TOGGLE_DISABLE_QUERY_CACHE";
+
+    /**
+     * set DEBUG_TOGGLE_DISABLE_QUERY_SEGMENT_CACHE=true to prevent using segment cache for current query
+     *
+     *
+     *
+     example:(put it into request body)
+     "backdoorToggles": {
+     "DEBUG_TOGGLE_DISABLE_QUERY_SEGMENT_CACHE": "true"
+     }
+     */
+    public final static String DEBUG_TOGGLE_DISABLE_QUERY_SEGMENT_CACHE = "DEBUG_TOGGLE_DISABLE_QUERY_SEGMENT_CACHE";
 
     /**
      * set DEBUG_TOGGLE_HBASE_CUBE_QUERY_VERSION=v1/v2 to control which version CubeStorageQuery to use
@@ -313,4 +363,9 @@ public class BackdoorToggles {
      }
      */
     public final static String DEBUG_TOGGLE_HTRACE_ENABLED = "DEBUG_TOGGLE_HTRACE_ENABLED";
+
+    /**
+     * extra calcite props from jdbc client
+     */
+    public static final String JDBC_CLIENT_CALCITE_PROPS = "JDBC_CLIENT_CALCITE_PROPS";
 }

@@ -64,7 +64,6 @@ import org.apache.kylin.metadata.model.TblColRef.InnerDataTypeEnum;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
@@ -359,26 +358,6 @@ public class DictGridTableTest extends LocalFileMetadataTestCase {
                 "[null, 30, null, null, 52.5]");
     }
 
-    @Test
-    @Ignore
-    public void testFilterScannerPerf() throws IOException {
-        GridTable table = newTestPerfTable();
-        GTInfo info = table.getInfo();
-
-        CompareTupleFilter fComp1 = compare(info.colRef(0), FilterOperatorEnum.GT, enc(info, 0, "2015-01-14"));
-        CompareTupleFilter fComp2 = compare(info.colRef(1), FilterOperatorEnum.GT, enc(info, 1, "10"));
-        LogicalTupleFilter filter = and(fComp1, fComp2);
-
-        FilterResultCache.ENABLED = false;
-        testFilterScannerPerfInner(table, info, filter);
-        FilterResultCache.ENABLED = true;
-        testFilterScannerPerfInner(table, info, filter);
-        FilterResultCache.ENABLED = false;
-        testFilterScannerPerfInner(table, info, filter);
-        FilterResultCache.ENABLED = true;
-        testFilterScannerPerfInner(table, info, filter);
-    }
-
     @SuppressWarnings("unused")
     private void testFilterScannerPerfInner(GridTable table, GTInfo info, LogicalTupleFilter filter)
             throws IOException {
@@ -393,7 +372,7 @@ public class DictGridTableTest extends LocalFileMetadataTestCase {
         scanner.close();
         long end = System.currentTimeMillis();
         System.out.println(
-                (end - start) + "ms with filter cache enabled=" + FilterResultCache.ENABLED + ", " + i + " rows");
+                (end - start) + "ms with filter cache enabled=" + FilterResultCache.DEFAULT_OPTION + ", " + i + " rows");
     }
 
     @Test
@@ -436,7 +415,9 @@ public class DictGridTableTest extends LocalFileMetadataTestCase {
         {
             LogicalTupleFilter filter = and(fComp1, compare(extColB, FilterOperatorEnum.LT, "9"));
             TupleFilter newFilter = GTUtil.convertFilterColumnsAndConstants(filter, info, colMapping, null);
-            assertEquals(ConstantTupleFilter.FALSE, newFilter);
+            assertEquals(
+                    "AND [UNKNOWN_MODEL:NULL.GT_MOCKUP_TABLE.0 GT [\\x00\\x00\\x01J\\xE5\\xBD\\x5C\\x00], UNKNOWN_MODEL:NULL.GT_MOCKUP_TABLE.1 ISNOTNULL []]",
+                    newFilter.toString());
         }
 
         // $1<"10" needs no rounding
@@ -501,7 +482,8 @@ public class DictGridTableTest extends LocalFileMetadataTestCase {
         {
             LogicalTupleFilter filter = and(fComp1, compare(extColB, FilterOperatorEnum.GT, "101"));
             TupleFilter newFilter = GTUtil.convertFilterColumnsAndConstants(filter, info, colMapping, null);
-            assertEquals(ConstantTupleFilter.FALSE, newFilter);
+            assertEquals("AND [UNKNOWN_MODEL:NULL.GT_MOCKUP_TABLE.0 GT [\\x00\\x00\\x01J\\xE5\\xBD\\x5C\\x00], UNKNOWN_MODEL:NULL.GT_MOCKUP_TABLE.1 ISNOTNULL []]",
+                    newFilter.toString());
         }
 
         // $1>"100" needs no rounding

@@ -35,7 +35,6 @@ import java.util.Locale;
 import java.util.NavigableSet;
 import java.util.TreeSet;
 
-import com.google.common.base.Preconditions;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -47,6 +46,9 @@ import org.apache.kylin.common.util.HadoopUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Interner;
+import com.google.common.collect.Interners;
 import com.google.common.collect.Lists;
 
 public class JDBCResourceDAO {
@@ -71,6 +73,8 @@ public class JDBCResourceDAO {
     private long queriedSqlNum = 0;
 
     private FileSystem redirectFileSystem;
+
+    private Interner<String> interner = Interners.newStrongInterner();
 
     public JDBCResourceDAO(KylinConfig kylinConfig, String metadataIdentifier) throws SQLException {
         this.kylinConfig = kylinConfig;
@@ -151,10 +155,22 @@ public class JDBCResourceDAO {
     //fetch primary key only
     public NavigableSet<String> listAllResource(final String folderPath, final boolean recursive) throws SQLException {
         final NavigableSet<String> allResourceName = new TreeSet<>();
+        if (isRootPath(folderPath)) {
+            for (int i = 0; i < tableNames.length; i++) {
+                final String tableName = tableNames[i];
+                listResource(tableName, folderPath, allResourceName, recursive);
+            }
+        } else {
+            listResource(getMetaTableName(folderPath), folderPath, allResourceName, recursive);
+        }
+        return allResourceName;
+    }
+
+    private void listResource(final String tableName, final String folderPath,
+            final NavigableSet<String> allResourceName, final boolean recursive) throws SQLException {
         executeSql(new SqlOperation() {
             @Override
             public void execute(Connection connection) throws SQLException {
-                String tableName = getMetaTableName(folderPath);
                 pstat = connection.prepareStatement(getListResourceSqlString(tableName));
                 pstat.setString(1, folderPath + "%");
                 rs = pstat.executeQuery();
@@ -171,7 +187,6 @@ public class JDBCResourceDAO {
                 }
             }
         });
-        return allResourceName;
     }
 
     public List<JDBCResource> getAllResource(final String folderPath, final long timeStart, final long timeEndExclusive,
@@ -226,26 +241,35 @@ public class JDBCResourceDAO {
     }
 
     public void deleteResource(final String resourcePath) throws SQLException {
+        if (isRootPath(resourcePath)) {
+            for (int i = 0; i < tableNames.length; i++) {
+                final String tableName = tableNames[i];
+                deleteResourceFromTable(tableName, resourcePath);
+            }
+        } else {
+            String tableName = getMetaTableName(resourcePath);
+            deleteResourceFromTable(tableName, resourcePath);
+        }
 
         boolean skipHdfs = isJsonMetadata(resourcePath);
+        if (!skipHdfs) {
+            try {
+                deleteHDFSResourceIfExist(resourcePath);
+            } catch (Throwable e) {
+                throw new SQLException(e);
+            }
+        }
+    }
 
+    private void deleteResourceFromTable(final String tableName, final String resourcePath) throws SQLException {
         executeSql(new SqlOperation() {
             @Override
             public void execute(Connection connection) throws SQLException {
-                String tableName = getMetaTableName(resourcePath);
                 pstat = connection.prepareStatement(getDeletePstatSql(tableName));
                 pstat.setString(1, resourcePath);
                 pstat.executeUpdate();
             }
         });
-
-        if (!skipHdfs) {
-            try {
-                deleteHDFSResourceIfExist(resourcePath);
-            } catch (Exception e) {
-                throw new SQLException(e);
-            }
-        }
     }
 
     private void deleteHDFSResourceIfExist(String resourcePath) throws IOException {
@@ -261,7 +285,7 @@ public class JDBCResourceDAO {
             @Override
             public void execute(Connection connection) throws SQLException {
                 byte[] content = getResourceDataBytes(resource);
-                synchronized (resource.getPath().intern()) {
+                synchronized (interner.intern(resource.getPath())) {
                     boolean existing = existResource(resource.getPath());
                     String tableName = getMetaTableName(resource.getPath());
                     if (existing) {
@@ -312,7 +336,7 @@ public class JDBCResourceDAO {
         executeSql(new SqlOperation() {
             @Override
             public void execute(Connection connection) throws SQLException {
-                synchronized (resPath.intern()) {
+                synchronized (interner.intern(resPath)) {
                     String tableName = getMetaTableName(resPath);
                     if (!existResource(resPath)) {
                         if (oldTS != 0) {
@@ -442,9 +466,11 @@ public class JDBCResourceDAO {
             }
 
             private boolean checkTableExists(final String tableName, final Connection connection) throws SQLException {
-                final PreparedStatement ps = connection.prepareStatement(getCheckTableExistsSql(tableName));
-                final ResultSet rs = ps.executeQuery();
+                PreparedStatement ps = null;
+                ResultSet rs = null;
                 try {
+                    ps = connection.prepareStatement(getCheckTableExistsSql(tableName));
+                    rs = ps.executeQuery();
                     while (rs.next()) {
                         if (tableName.equals(rs.getString(1))) {
                             return true;
@@ -703,6 +729,10 @@ public class JDBCResourceDAO {
      * @return the table name
      */
     public String getMetaTableName(String resPath) {
+        if (isRootPath(resPath)) {
+            throw new IllegalArgumentException("Not supported");
+        }
+
         if (resPath.startsWith(ResourceStore.BAD_QUERY_RESOURCE_ROOT)
                 || resPath.startsWith(ResourceStore.EXECUTE_OUTPUT_RESOURCE_ROOT)
                 || resPath.startsWith(ResourceStore.TEMP_STATMENT_RESOURCE_ROOT)) {
@@ -710,6 +740,10 @@ public class JDBCResourceDAO {
         } else {
             return tableNames[0];
         }
+    }
+
+    public boolean isRootPath(String path) {
+        return "/".equals(path);
     }
 
 }
