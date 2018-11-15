@@ -46,26 +46,24 @@ import java.util.Map;
  * Created by Yichen on 11/14/18.
  */
 public class ConvertToParquetReducer extends KylinReducer<Text, Text, NullWritable, Group> {
-    private Configuration conf;
     private ParquetConvertor convertor;
-    private String cubeName;
     private MultipleOutputs<NullWritable, Group> mos;
-    private String segmentId;
-    private Cuboid baseCuboid;
-    private CubeInstance cube;
     private CubeSegment cubeSegment;
-    private CubeManager cubeManager;
-    private KylinConfig kylinConfig;
 
     @Override
     protected void doSetup(Context context) throws IOException, InterruptedException {
-        conf = context.getConfiguration();
+        Configuration conf = context.getConfiguration();
         super.bindCurrentConfiguration(conf);
         mos = new MultipleOutputs(context);
-        kylinConfig = AbstractHadoopJob.loadKylinPropsAndMetadata();
 
-        initKylinMeta();
+        KylinConfig kylinConfig = AbstractHadoopJob.loadKylinPropsAndMetadata();
 
+        String cubeName = conf.get(BatchConstants.CFG_CUBE_NAME);
+        String segmentId = conf.get(BatchConstants.CFG_CUBE_SEGMENT_ID);
+        CubeManager cubeManager = CubeManager.getInstance(kylinConfig);
+        CubeInstance cube = cubeManager.getCube(cubeName);
+        cubeSegment = cube.getSegmentById(segmentId);
+        Cuboid baseCuboid = Cuboid.getBaseCuboid(cubeSegment.getCubeDesc());
         final IDimensionEncodingMap dimEncMap = cubeSegment.getDimensionEncodingMap();
         SerializableConfiguration sConf = new SerializableConfiguration(conf);
 
@@ -73,16 +71,6 @@ public class ConvertToParquetReducer extends KylinReducer<Text, Text, NullWritab
         Map<MeasureDesc, String> meaTypeMap = Maps.newHashMap();
         ParquetConvertor.generateTypeMap(baseCuboid, dimEncMap, cube.getDescriptor(), colTypeMap, meaTypeMap);
         convertor = new ParquetConvertor(cubeName, segmentId, kylinConfig, sConf, colTypeMap, meaTypeMap);
-
-    }
-
-    private void initKylinMeta() {
-        cubeName = conf.get(BatchConstants.CFG_CUBE_NAME);
-        segmentId = conf.get(BatchConstants.CFG_CUBE_SEGMENT_ID);
-        cubeManager = CubeManager.getInstance(kylinConfig);
-        cube = cubeManager.getCube(cubeName);
-        cubeSegment = cube.getSegmentById(segmentId);
-        baseCuboid = Cuboid.getBaseCuboid(cubeSegment.getCubeDesc());
     }
 
     @Override

@@ -159,8 +159,6 @@ public class MRCubeParquetJob extends AbstractHadoopJob {
         }
     }
 
-
-
     public static void main(String[] args) throws Exception {
         MRCubeParquetJob job = new MRCubeParquetJob();
         int exitCode = ToolRunner.run(job, args);

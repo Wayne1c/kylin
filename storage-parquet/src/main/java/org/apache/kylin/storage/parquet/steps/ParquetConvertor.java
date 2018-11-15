@@ -77,7 +77,6 @@ public class ParquetConvertor {
     public static final String DATATYPE_STRING = "string";
     public static final String DATATYPE_BINARY = "binary";
 
-
     private RowKeyDecoder decoder;
     private BufferedMeasureCodec measureCodec;
     private Map<TblColRef, String> colTypeMap;
@@ -85,8 +84,6 @@ public class ParquetConvertor {
     private BigDecimalSerializer serializer;
     private GroupFactory factory;
     private List<MeasureDesc> measureDescs;
-
-
 
     public ParquetConvertor(String cubeName, String segmentId, KylinConfig kConfig, SerializableConfiguration sConf, Map<TblColRef, String> colTypeMap, Map<MeasureDesc, String> meaTypeMap){
         KylinConfig.setAndUnsetThreadLocalConfig(kConfig);
@@ -103,7 +100,6 @@ public class ParquetConvertor {
         factory = new SimpleGroupFactory(GroupWriteSupport.getSchema(sConf.get()));
         measureCodec = new BufferedMeasureCodec(cubeDesc.getMeasures());
     }
-
 
     protected Group parseValueToGroup(Text rawKey, Text rawValue) throws IOException{
         Group group = factory.newGroup();
