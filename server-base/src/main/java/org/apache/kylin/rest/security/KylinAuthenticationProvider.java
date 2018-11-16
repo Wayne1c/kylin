@@ -110,12 +110,10 @@ public class KylinAuthenticationProvider implements AuthenticationProvider {
                 }
                 Assert.notNull(user, "The UserDetail is null.");
 
-                String username = user.getUsername();
-                logger.debug("User {} authorities : {}", username, user.getAuthorities());
-                if (!userService.userExists(username)) {
+                logger.debug("User {} authorities : {}", user.getUsername(), user.getAuthorities());
+                if (!userService.userExists(user.getUsername())) {
                     userService.createUser(user);
-                } else if (!userService.loadUserByUsername(username).equals(user)) {
-                    // in case ldap users changing.
+                } else {
                     userService.updateUser(user);
                 }
 

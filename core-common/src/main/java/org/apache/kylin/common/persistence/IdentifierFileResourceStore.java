@@ -17,6 +17,8 @@
 */
 package org.apache.kylin.common.persistence;
 
+import java.io.File;
+
 import org.apache.kylin.common.KylinConfig;
 import org.apache.kylin.common.StorageURL;
 import org.slf4j.Logger;
@@ -35,6 +37,8 @@ public class IdentifierFileResourceStore extends FileResourceStore {
     private static final Logger logger = LoggerFactory.getLogger(IdentifierFileResourceStore.class);
 
     private static final String IFILE_SCHEME = "ifile";
+
+    private File root;
 
     public IdentifierFileResourceStore(KylinConfig kylinConfig) throws Exception {
         super(kylinConfig);

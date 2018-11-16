@@ -43,10 +43,6 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
-/**
- * A ResourceStore implementation with HDFS as the storage.
- * The typical scenario is as read-only or single thread temporary storage for metadata.
- */
 public class HDFSResourceStore extends ResourceStore {
 
     private static final Logger logger = LoggerFactory.getLogger(HDFSResourceStore.class);
@@ -57,40 +53,40 @@ public class HDFSResourceStore extends ResourceStore {
 
     private static final String HDFS_SCHEME = "hdfs";
 
-    public HDFSResourceStore(KylinConfig kylinConfig) throws IOException {
+    public HDFSResourceStore(KylinConfig kylinConfig) throws Exception {
         this(kylinConfig, kylinConfig.getMetadataUrl());
     }
-
-    public HDFSResourceStore(KylinConfig kylinConfig, StorageURL metadataUrl) throws IOException {
+    
+    public HDFSResourceStore(KylinConfig kylinConfig, StorageURL metadataUrl) throws Exception {
         super(kylinConfig);
         Preconditions.checkState(HDFS_SCHEME.equals(metadataUrl.getScheme()));
-
+        
         String path = metadataUrl.getParameter("path");
         if (path == null) {
             // missing path is not expected, but don't fail it
             path = kylinConfig.getHdfsWorkingDirectory() + "tmp_metadata";
-            logger.warn("Missing path, fall back to {}", path);
+            logger.warn("Missing path, fall back to {0}", path);
         }
-
+        
         fs = HadoopUtil.getFileSystem(path);
         Path metadataPath = new Path(path);
-        if (!fs.exists(metadataPath)) {
-            logger.warn("Path not exist in HDFS, create it: {}", path);
+        if (fs.exists(metadataPath) == false) {
+            logger.warn("Path not exist in HDFS, create it: {0}", path);
             createMetaFolder(metadataPath);
         }
 
         hdfsMetaPath = metadataPath;
-        logger.info("hdfs meta path : {}", hdfsMetaPath);
+        logger.info("hdfs meta path : {0}", hdfsMetaPath.toString());
 
     }
 
-    private void createMetaFolder(Path metaDirName) throws IOException {
+    private void createMetaFolder(Path metaDirName) throws Exception {
         //create hdfs meta path
         if (!fs.exists(metaDirName)) {
             fs.mkdirs(metaDirName);
         }
 
-        logger.info("hdfs meta path created: {}", metaDirName);
+        logger.info("hdfs meta path created: {0}", metaDirName.toString());
     }
 
     @Override
@@ -135,8 +131,7 @@ public class HDFSResourceStore extends ResourceStore {
     }
 
     @Override
-    protected List<RawResource> getAllResourcesImpl(String folderPath, long timeStart, long timeEndExclusive)
-            throws IOException {
+    protected List<RawResource> getAllResourcesImpl(String folderPath, long timeStart, long timeEndExclusive) throws IOException {
         NavigableSet<String> resources = listResources(folderPath);
         if (resources == null)
             return Collections.emptyList();
@@ -164,18 +159,14 @@ public class HDFSResourceStore extends ResourceStore {
         Path p = getRealHDFSPath(resPath);
         if (fs.exists(p) && fs.isFile(p)) {
             if (fs.getFileStatus(p).getLen() == 0) {
-                logger.warn("Zero length file: {}", p);
+                logger.warn("Zero length file: {0}", p.toString());
             }
-            FSDataInputStream in = getHDFSFileInputStream(fs, p);
+            FSDataInputStream in = fs.open(p);
             long t = in.readLong();
             return new RawResource(in, t);
         } else {
             return null;
         }
-    }
-
-    private FSDataInputStream getHDFSFileInputStream(FileSystem fs, Path path) throws IOException {
-        return fs.open(path);
     }
 
     @Override
@@ -184,38 +175,49 @@ public class HDFSResourceStore extends ResourceStore {
         if (!fs.exists(p) || !fs.isFile(p)) {
             return 0;
         }
-        try (FSDataInputStream in = fs.open(p)) {
-            return in.readLong();
+        FSDataInputStream in = null;
+        try {
+            in = fs.open(p);
+            long t = in.readLong();
+            return t;
+        } catch (Exception e) {
+            throw new IOException("Put resource fail", e);
+        } finally {
+            IOUtils.closeQuietly(in);
         }
+
     }
 
     @Override
     protected void putResourceImpl(String resPath, InputStream content, long ts) throws IOException {
-        logger.trace("res path : {}", resPath);
+        logger.trace("res path : {0}", resPath);
         Path p = getRealHDFSPath(resPath);
-        logger.trace("put resource : {}", p.toUri());
-        try (FSDataOutputStream out = fs.create(p, true)) {
+        logger.trace("put resource : {0}", p.toUri());
+        FSDataOutputStream out = null;
+        try {
+            out = fs.create(p, true);
             out.writeLong(ts);
             IOUtils.copy(content, out);
+
+        } catch (Exception e) {
+            throw new IOException("Put resource fail", e);
         } finally {
-            IOUtils.closeQuietly(content);
+            IOUtils.closeQuietly(out);
         }
     }
 
     @Override
-    protected long checkAndPutResourceImpl(String resPath, byte[] content, long oldTS, long newTS) throws IOException {
+    protected long checkAndPutResourceImpl(String resPath, byte[] content, long oldTS, long newTS) throws IOException, WriteConflictException {
         Path p = getRealHDFSPath(resPath);
         if (!fs.exists(p)) {
             if (oldTS != 0) {
-                throw new IllegalStateException(
-                        "For not exist file. OldTS have to be 0. but Actual oldTS is : " + oldTS);
+                throw new IllegalStateException("For not exist file. OldTS have to be 0. but Actual oldTS is : " + oldTS);
             }
 
         } else {
             long realLastModify = getResourceTimestamp(resPath);
             if (realLastModify != oldTS) {
-                throw new WriteConflictException("Overwriting conflict " + resPath + ", expect old TS " + oldTS
-                        + ", but found " + realLastModify);
+                throw new WriteConflictException("Overwriting conflict " + resPath + ", expect old TS " + oldTS + ", but found " + realLastModify);
             }
         }
         putResourceImpl(resPath, new ByteArrayInputStream(content), newTS);
@@ -243,7 +245,7 @@ public class HDFSResourceStore extends ResourceStore {
         if (resourcePath.equals("/"))
             return this.hdfsMetaPath;
         if (resourcePath.startsWith("/") && resourcePath.length() > 1)
-            resourcePath = resourcePath.substring(1);
+            resourcePath = resourcePath.substring(1, resourcePath.length());
         return new Path(this.hdfsMetaPath, resourcePath);
     }
 }

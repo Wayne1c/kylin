@@ -32,9 +32,6 @@ public abstract class ParquetJobSteps extends JobBuilderSupport {
         super(seg, null);
     }
 
-    public static String getCuboidOutputFileName(long cuboid, int partNum) {
-        String fileName = "cuboid_" + cuboid + "_part" + partNum;
-        return fileName;
-    }
-    abstract public AbstractExecutable convertToParquetStep(String jobId);
+
+    abstract public AbstractExecutable createConvertToParquetStep(String jobId);
 }

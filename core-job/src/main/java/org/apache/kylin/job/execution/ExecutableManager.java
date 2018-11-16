@@ -442,6 +442,7 @@ public class ExecutableManager {
     public void forceKillJob(String jobId) {
         try {
             final ExecutableOutputPO jobOutput = executableDao.getJobOutput(jobId);
+            jobOutput.setStatus(ExecutableState.ERROR.toString());
             List<ExecutablePO> tasks = executableDao.getJob(jobId).getTasks();
 
             for (ExecutablePO task : tasks) {
@@ -452,28 +453,9 @@ public class ExecutableManager {
                 }
                 break;
             }
-
-            if (!jobOutput.getStatus().equals(ExecutableState.ERROR.toString())) {
-                jobOutput.setStatus(ExecutableState.ERROR.toString());
-                executableDao.updateJobOutput(jobOutput);
-            }
+            executableDao.updateJobOutput(jobOutput);
         } catch (PersistentException e) {
             throw new RuntimeException(e);
-        }
-    }
-
-    public void forceKillJobWithRetry(String jobId) {
-        boolean done = false;
-
-        while (!done) {
-            try {
-                forceKillJob(jobId);
-                done = true;
-            } catch (RuntimeException e) {
-                if (!(e.getCause() instanceof PersistentException)) {
-                    done = true;
-                }
-            }
         }
     }
 
@@ -493,10 +475,6 @@ public class ExecutableManager {
     }
 
     public void addJobInfo(String id, Map<String, String> info) {
-        if (Thread.currentThread().isInterrupted()) {
-            throw new RuntimeException("Current thread is interrupted, aborting");
-        }
-
         if (info == null) {
             return;
         }

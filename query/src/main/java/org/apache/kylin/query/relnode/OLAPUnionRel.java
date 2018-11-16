@@ -23,6 +23,7 @@ import java.util.List;
 
 import org.apache.calcite.adapter.enumerable.EnumerableConvention;
 import org.apache.calcite.adapter.enumerable.EnumerableRel;
+import org.apache.calcite.adapter.enumerable.EnumerableUnion;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -45,6 +46,7 @@ import com.google.common.collect.Lists;
  */
 public class OLAPUnionRel extends Union implements OLAPRel {
 
+    final boolean localAll ; // avoid same name in parent class
     ColumnRowType columnRowType;
     OLAPContext context;
 
@@ -54,6 +56,7 @@ public class OLAPUnionRel extends Union implements OLAPRel {
         for (RelNode child : inputs) {
             Preconditions.checkArgument(getConvention() == child.getConvention());
         }
+        this.localAll = all;
     }
 
     @Override
@@ -135,7 +138,7 @@ public class OLAPUnionRel extends Union implements OLAPRel {
             }
             relInputs.add(input);
         }
-        return new KylinEnumerableUnion(getCluster(), traitSet.replace(EnumerableConvention.INSTANCE), relInputs, all);
+        return new EnumerableUnion(getCluster(), traitSet.replace(EnumerableConvention.INSTANCE), relInputs, localAll);
     }
 
     @Override

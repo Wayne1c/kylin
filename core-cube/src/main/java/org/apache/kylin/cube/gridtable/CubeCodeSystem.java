@@ -168,13 +168,13 @@ public class CubeCodeSystem implements IGTCodeSystem {
 
         // deal with holistic distinct count
         if (dependentMetricsMap != null) {
-            for (Map.Entry<Integer, Integer> childEntry : dependentMetricsMap.entrySet()) {
-                if (columns.get(childEntry.getKey())) {
-                    Integer parent = childEntry.getValue();
+            for (Integer child : dependentMetricsMap.keySet()) {
+                if (columns.get(child)) {
+                    Integer parent = dependentMetricsMap.get(child);
                     if (columns.get(parent) == false)
                         throw new IllegalStateException();
 
-                    int childIdx = columns.trueBitIndexOf(childEntry.getKey());
+                    int childIdx = columns.trueBitIndexOf(child);
                     int parentIdx = columns.trueBitIndexOf(parent);
                     result[childIdx].setDependentAggregator(result[parentIdx]);
                 }

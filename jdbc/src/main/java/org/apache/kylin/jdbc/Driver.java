@@ -20,9 +20,7 @@ package org.apache.kylin.jdbc;
 
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.util.Set;
 
-import com.google.common.collect.Sets;
 import org.apache.calcite.avatica.AvaticaConnection;
 import org.apache.calcite.avatica.DriverVersion;
 import org.apache.calcite.avatica.Meta;
@@ -42,8 +40,8 @@ import org.apache.calcite.avatica.UnregisteredDriver;
  * Supported Statements:
  * </p>
  * <ul>
- * <li>{@link KylinStatement}</li>
- * <li>{@link KylinPreparedStatement}</li>
+ * <li>{@link KylinStatementImpl}</li>
+ * <li>{@link KylinPrepareStatementImpl}</li>
  * </ul>
  * 
  * <p>
@@ -52,7 +50,6 @@ import org.apache.calcite.avatica.UnregisteredDriver;
  * <li>user: username</li>
  * <li>password: password</li>
  * <li>ssl: true/false</li>
- * <li>{@link #CLIENT_CALCITE_PROP_NAMES extras calcite props} like: caseSensitive, unquotedCasing, quoting, conformance</li>
  * </ul>
  * </p>
  * 
@@ -62,10 +59,9 @@ import org.apache.calcite.avatica.UnregisteredDriver;
  * <pre>
  * Driver driver = (Driver) Class.forName(&quot;org.apache.kylin.kylin.jdbc.Driver&quot;).newInstance();
  * Properties info = new Properties();
- * info.setProperty(&quot;user&quot;, &quot;user&quot;);
- * info.setProperty(&quot;password&quot;, &quot;password&quot;);
- * info.setProperty(&quot;ssl&quot;, &quot;true&quot;);
- * info.setProperty(&quot;caseSensitive&quot;, &quot;true&quot;);
+ * info.put(&quot;user&quot;, &quot;user&quot;);
+ * info.put(&quot;password&quot;, &quot;password&quot;);
+ * info.put(&quot;ssl&quot;, true);
  * Connection conn = driver.connect(&quot;jdbc:kylin://{domain}/{project}&quot;, info);
  * </pre>
  * 
@@ -74,17 +70,6 @@ import org.apache.calcite.avatica.UnregisteredDriver;
 public class Driver extends UnregisteredDriver {
 
     public static final String CONNECT_STRING_PREFIX = "jdbc:kylin:";
-
-    /**
-     * These calcite props can be configured by jdbc connection
-     */
-    protected static final Set<String> CLIENT_CALCITE_PROP_NAMES = Sets.newHashSet(
-            "caseSensitive",
-            "unquotedCasing",
-            "quoting",
-            "conformance"
-    );
-
     static {
         try {
             DriverManager.registerDriver(new Driver());

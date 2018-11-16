@@ -56,7 +56,7 @@ public class ExtendedColumnMeasureType extends MeasureType<ByteArray> {
 
         @Override
         public MeasureType<ByteArray> createMeasureType(String funcName, DataType dataType) {
-            return new ExtendedColumnMeasureType(dataType);
+            return new ExtendedColumnMeasureType(funcName, dataType);
         }
 
         @Override
@@ -75,7 +75,7 @@ public class ExtendedColumnMeasureType extends MeasureType<ByteArray> {
         }
     }
 
-    public ExtendedColumnMeasureType(DataType dataType) {
+    public ExtendedColumnMeasureType(String funcName, DataType dataType) {
         this.dataType = dataType;
     }
 
@@ -237,11 +237,6 @@ public class ExtendedColumnMeasureType extends MeasureType<ByteArray> {
                     return new ByteArray(
                             truncateWhenUTF8(literal, dataType.getPrecision()).getBytes(StandardCharsets.UTF_8));
                 }
-            }
-
-            @Override
-            public void reset() {
-
             }
         };
     }

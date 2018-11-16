@@ -40,7 +40,7 @@
 
   <properties>
     <!-- General Properties -->
-    <javaVersion>1.8</javaVersion>
+    <javaVersion>1.7</javaVersion>
     <maven-model.version>3.3.9</maven-model.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -60,7 +60,7 @@
     <kafka.version>1.0.0</kafka.version>
 
     <!-- Spark versions -->
-    <spark.version>2.3.2</spark.version>
+    <spark.version>2.2.1</spark.version>
     <kryo.version>4.0.0</kryo.version>
 
     <!-- mysql versions -->
@@ -76,11 +76,11 @@
     <avatica.version>1.10.0</avatica.version>
 
     <!-- Hadoop Common deps, keep compatible with hadoop2.version -->
-    <zookeeper.version>3.4.13</zookeeper.version>
+    <zookeeper.version>3.4.12</zookeeper.version>
     <curator.version>2.12.0</curator.version>
     <jsr305.version>3.0.1</jsr305.version>
     <guava.version>14.0</guava.version>
-    <jsch.version>0.1.54</jsch.version>
+    <jsch.version>0.1.53</jsch.version>
     <commons-cli.version>1.2</commons-cli.version>
     <commons-lang.version>2.6</commons-lang.version>
     <commons-io.version>2.4</commons-io.version>
@@ -107,7 +107,7 @@
     <commons-lang3.version>3.4</commons-lang3.version>
     <commons-email.version>1.5</commons-email.version>
     <commons-validator.version>1.4.0</commons-validator.version>
-    <commons-compress>1.18</commons-compress>
+    <commons-compress>1.17</commons-compress>
 
     <!-- Utility -->
     <log4j.version>1.2.17</log4j.version>
@@ -115,13 +115,12 @@
     <xerces.version>2.11.0</xerces.version>
     <xalan.version>2.7.2</xalan.version>
     <ehcache.version>2.10.2.2.21</ehcache.version>
-    <memcached.verion>2.12.3</memcached.verion>
     <apache-httpclient.version>4.2.5</apache-httpclient.version>
     <roaring.version>0.6.18</roaring.version>
     <cglib.version>3.2.4</cglib.version>
     <supercsv.version>2.4.0</supercsv.version>
     <cors.version>2.5</cors.version>
-    <tomcat.version>7.0.91</tomcat.version>
+    <tomcat.version>7.0.90</tomcat.version>
     <t-digest.version>3.1</t-digest.version>
     <freemarker.version>2.3.23</freemarker.version>
     <rocksdb.version>5.9.2</rocksdb.version>
@@ -140,7 +139,7 @@
     <!-- Sonar -->
     <sonar.java.coveragePlugin>jacoco</sonar.java.coveragePlugin>
     <sonar.dynamicAnalysis>reuseReports</sonar.dynamicAnalysis>
-    <sonar.jacoco.reportPaths>${project.basedir}/../target/jacoco.exec</sonar.jacoco.reportPaths>
+    <sonar.jacoco.reportPath>${project.basedir}/../target/jacoco.exec</sonar.jacoco.reportPath>
     <sonar.language>java</sonar.language>
     <sonar.jacoco.excludes>
       org/apache/kylin/**/tools/**:**/*CLI.java
@@ -258,11 +257,6 @@
       <dependency>
         <groupId>org.apache.kylin</groupId>
         <artifactId>kylin-core-storage</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.kylin</groupId>
-        <artifactId>kylin-cache</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
@@ -758,11 +752,6 @@
         <artifactId>metrics-core</artifactId>
         <version>${dropwizard.version}</version>
       </dependency>
-      <dependency>
-        <groupId>io.dropwizard.metrics</groupId>
-        <artifactId>metrics-jvm</artifactId>
-        <version>${dropwizard.version}</version>
-      </dependency>
 
       <!-- Test -->
       <dependency>
@@ -847,11 +836,6 @@
         <groupId>net.sf.ehcache</groupId>
         <artifactId>ehcache</artifactId>
         <version>${ehcache.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>net.spy</groupId>
-        <artifactId>spymemcached</artifactId>
-        <version>${memcached.verion}</version>
       </dependency>
       <dependency>
         <groupId>org.opensaml</groupId>
@@ -1284,8 +1268,7 @@
     <module>core-metrics</module>
     <module>metrics-reporter-hive</module>
     <module>metrics-reporter-kafka</module>
-    <module>cache</module>
-    <module>kylin-test</module>
+      <module>kylin-test</module>
   </modules>
 
   <reporting>
@@ -1419,7 +1402,7 @@
                 </goals>
                 <configuration>
                   <append>true</append>
-                  <destFile>${sonar.jacoco.reportPaths}</destFile>
+                  <destFile>${sonar.jacoco.reportPath}</destFile>
                   <propertyName>surefireArgLine</propertyName>
                 </configuration>
               </execution>
@@ -1430,7 +1413,7 @@
                   <goal>report</goal>
                 </goals>
                 <configuration>
-                  <dataFile>${sonar.jacoco.reportPaths}</dataFile>
+                  <dataFile>${sonar.jacoco.reportPath}</dataFile>
                 </configuration>
               </execution>
             </executions>
@@ -1493,92 +1476,92 @@
             </configuration>
           </plugin>
 
-    <plugin>
-      <groupId>org.apache.maven.plugins</groupId>
-      <artifactId>maven-dependency-plugin</artifactId>
-      <executions>
-        <execution>
-          <id>copy-jamm</id>
-          <goals>
-            <goal>copy</goal>
-          </goals>
-          <phase>generate-test-resources</phase>
-          <configuration>
-            <artifactItems>
-              <artifactItem>
-                <groupId>com.github.jbellis</groupId>
-                <artifactId>jamm</artifactId>
-                <outputDirectory>${project.build.testOutputDirectory}
-                </outputDirectory>
-                <destFileName>jamm.jar</destFileName>
-              </artifactItem>
-            </artifactItems>
-          </configuration>
-        </execution>
-      </executions>
-    </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-dependency-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>copy-jamm</id>
+                <goals>
+                  <goal>copy</goal>
+                </goals>
+                <phase>generate-test-resources</phase>
+                <configuration>
+                  <artifactItems>
+                    <artifactItem>
+                      <groupId>com.github.jbellis</groupId>
+                      <artifactId>jamm</artifactId>
+                      <outputDirectory>${project.build.testOutputDirectory}
+                      </outputDirectory>
+                      <destFileName>jamm.jar</destFileName>
+                    </artifactItem>
+                  </artifactItems>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
 
-    <plugin>
-      <groupId>org.jacoco</groupId>
-      <artifactId>jacoco-maven-plugin</artifactId>
-      <configuration>
-        <append>true</append>
-        <destFile>
-          ${sonar.jacoco.reportPaths}
-        </destFile>
-      </configuration>
-      <executions>
-        <execution>
-          <id>pre-test</id>
-          <goals>
-            <goal>prepare-agent</goal>
-          </goals>
-          <configuration>
-            <propertyName>surefireArgLine</propertyName>
-          </configuration>
-        </execution>
-        <execution>
-          <id>post-test</id>
-          <phase>test</phase>
-          <goals>
-            <goal>report</goal>
-          </goals>
-        </execution>
-      </executions>
-    </plugin>
-    <plugin>
-      <groupId>org.apache.maven.plugins</groupId>
-      <artifactId>maven-surefire-plugin</artifactId>
-      <version>2.21.0</version>
-      <configuration>
-        <reportsDirectory>${project.basedir}/../target/surefire-reports
-        </reportsDirectory>
-        <excludes>
-          <exclude>**/IT*.java</exclude>
-        </excludes>
-        <systemProperties>
-          <property>
-            <name>buildCubeUsingProvidedData</name>
-            <value>false</value>
-          </property>
-          <property>
-            <name>log4j.configuration</name>
-            <value>
-              file:${project.basedir}/../build/conf/kylin-tools-log4j.properties
-            </value>
-          </property>
-        </systemProperties>
-        <argLine>-javaagent:${project.build.testOutputDirectory}/jamm.jar
-          ${argLine} ${surefireArgLine}
-        </argLine>
-      </configuration>
-    </plugin>
-  </plugins>
-</build>
-</profile>
-<profile>
-<!-- This profile adds/overrides few features of the 'apache-release'
-     profile in the parent pom. -->
+          <plugin>
+            <groupId>org.jacoco</groupId>
+            <artifactId>jacoco-maven-plugin</artifactId>
+            <configuration>
+              <append>true</append>
+              <destFile>
+                ${sonar.jacoco.reportPath}
+              </destFile>
+            </configuration>
+            <executions>
+              <execution>
+                <id>pre-test</id>
+                <goals>
+                  <goal>prepare-agent</goal>
+                </goals>
+                <configuration>
+                  <propertyName>surefireArgLine</propertyName>
+                </configuration>
+              </execution>
+              <execution>
+                <id>post-test</id>
+                <phase>test</phase>
+                <goals>
+                  <goal>report</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <version>2.21.0</version>
+            <configuration>
+              <reportsDirectory>${project.basedir}/../target/surefire-reports
+              </reportsDirectory>
+              <excludes>
+                <exclude>**/IT*.java</exclude>
+              </excludes>
+              <systemProperties>
+                <property>
+                  <name>buildCubeUsingProvidedData</name>
+                  <value>false</value>
+                </property>
+                <property>
+                  <name>log4j.configuration</name>
+                  <value>
+                    file:${project.basedir}/../build/conf/kylin-tools-log4j.properties
+                  </value>
+                </property>
+              </systemProperties>
+              <argLine>-javaagent:${project.build.testOutputDirectory}/jamm.jar
+                ${argLine} ${surefireArgLine}
+              </argLine>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <!-- This profile adds/overrides few features of the 'apache-release'
+           profile in the parent pom. -->
       <id>apache-release</id>
       <activation>
         <property>

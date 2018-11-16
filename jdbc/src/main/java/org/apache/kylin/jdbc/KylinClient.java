@@ -176,20 +176,20 @@ public class KylinClient implements IRemoteClient {
             return new BigDecimal(value);
         case Types.BIT:
         case Types.BOOLEAN:
-            return Boolean.valueOf(value);
+            return Boolean.parseBoolean(value);
         case Types.TINYINT:
             return Byte.valueOf(value);
         case Types.SMALLINT:
             return Short.valueOf(value);
         case Types.INTEGER:
-            return Integer.valueOf(value);
+            return Integer.parseInt(value);
         case Types.BIGINT:
-            return Long.valueOf(value);
+            return Long.parseLong(value);
         case Types.FLOAT:
-            return Float.valueOf(value);
+            return Float.parseFloat(value);
         case Types.REAL:
         case Types.DOUBLE:
-            return Double.valueOf(value);
+            return Double.parseDouble(value);
         case Types.BINARY:
         case Types.VARBINARY:
         case Types.LONGVARBINARY:
@@ -379,7 +379,7 @@ public class KylinClient implements IRemoteClient {
         addHttpHeaders(post);
 
         String postBody = jsonMapper.writeValueAsString(request);
-        logger.debug("Post body:\n {}", postBody);
+        logger.debug("Post body:\n " + postBody);
         StringEntity requestEntity = new StringEntity(postBody, ContentType.create("application/json", "UTF-8"));
         post.setEntity(requestEntity);
 

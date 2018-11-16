@@ -348,19 +348,6 @@ public class DoggedCubeBuilder extends AbstractInMemCubeBuilder {
         }
 
         @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            MergeSlot mergeSlot = (MergeSlot) o;
-            return compareTo(mergeSlot) == 0;
-        }
-
-        @Override
-        public int hashCode() {
-            return Long.hashCode(currentCuboidId);
-        }
-
-        @Override
         public int compareTo(MergeSlot o) {
             long cuboidComp = this.currentCuboidId - o.currentCuboidId;
             if (cuboidComp != 0)

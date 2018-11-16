@@ -72,7 +72,7 @@ public class LookupTableToHFileJob extends AbstractHadoopJob {
     protected static final Logger logger = LoggerFactory.getLogger(LookupTableToHFileJob.class);
 
     private static String ALPHA_NUM = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    private static final Random ran = new Random();
+
     private static int HBASE_TABLE_LENGTH = 10;
 
     public int run(String[] args) throws Exception {
@@ -261,8 +261,9 @@ public class LookupTableToHFileJob extends AbstractHadoopJob {
                 + IRealizationConstants.LookupHbaseStorageLocationPrefix + tableName + "_";
         String namespace = kylinConfig.getHBaseStorageNameSpace();
         String hTableName;
+        Random ran = new Random();
         do {
-            StringBuilder sb = new StringBuilder();
+            StringBuffer sb = new StringBuffer();
             if ((namespace.equals("default") || namespace.equals("")) == false) {
                 sb.append(namespace).append(":");
             }

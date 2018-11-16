@@ -35,7 +35,4 @@ public interface IDictionaryBuilder {
     
     /** Build the dictionary */
     Dictionary<String> build() throws IOException;
-
-    /** Clear before exit */
-    void clear();
 }

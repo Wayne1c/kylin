@@ -27,10 +27,9 @@ import org.apache.kylin.cube.CubeSegment;
 import org.apache.kylin.cube.cuboid.CuboidScheduler;
 import org.apache.kylin.engine.mr.IMROutput2;
 import org.apache.kylin.job.execution.DefaultChainedExecutable;
+import org.apache.kylin.metadata.model.IEngineAware;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.List;
 
 
 /**
@@ -43,7 +42,14 @@ public class ParquetMROutput implements IMROutput2 {
     @Override
     public IMRBatchCubingOutputSide2 getBatchCubingOutputSide(CubeSegment seg) {
 
-        final ParquetJobSteps steps = new ParquetMRSteps(seg);
+        boolean useSpark = seg.getCubeDesc().getEngineType() == IEngineAware.ID_SPARK;
+
+
+        // TODO need refactor
+        if (!useSpark){
+            throw new RuntimeException("Cannot adapt to MR engine");
+        }
+        final ParquetJobSteps steps = new ParquetSparkSteps(seg);
 
         return new IMRBatchCubingOutputSide2() {
 
@@ -53,7 +59,6 @@ public class ParquetMROutput implements IMROutput2 {
 
             @Override
             public void addStepPhase3_BuildCube(DefaultChainedExecutable jobFlow) {
-                jobFlow.addTask(steps.convertToParquetStep(jobFlow.getId()));
             }
 
             @Override
@@ -88,50 +93,11 @@ public class ParquetMROutput implements IMROutput2 {
 
     @Override
     public IMRBatchMergeOutputSide2 getBatchMergeOutputSide(CubeSegment seg) {
-        final ParquetJobSteps steps = new ParquetMRSteps(seg);
-        return new IMRBatchMergeOutputSide2() {
-            @Override
-            public void addStepPhase1_MergeDictionary(DefaultChainedExecutable jobFlow) {
-            }
-
-            @Override
-            public void addStepPhase2_BuildCube(CubeSegment set, List<CubeSegment> mergingSegments, DefaultChainedExecutable jobFlow) {
-                jobFlow.addTask(steps.convertToParquetStep(jobFlow.getId()));
-            }
-
-            @Override
-            public void addStepPhase3_Cleanup(DefaultChainedExecutable jobFlow) {
-            }
-
-            @Override
-            public IMRMergeOutputFormat getOuputFormat() {
-                return null;
-            }
-        };
+        return null;
     }
 
     @Override
     public IMRBatchOptimizeOutputSide2 getBatchOptimizeOutputSide(CubeSegment seg) {
-        final ParquetJobSteps steps = new ParquetMRSteps(seg);
-
-        return new IMRBatchOptimizeOutputSide2() {
-            @Override
-            public void addStepPhase2_CreateHTable(DefaultChainedExecutable jobFlow) {
-            }
-
-            @Override
-            public void addStepPhase3_BuildCube(DefaultChainedExecutable jobFlow) {
-                jobFlow.addTask(steps.convertToParquetStep(jobFlow.getId()));
-            }
-
-            @Override
-            public void addStepPhase4_Cleanup(DefaultChainedExecutable jobFlow) {
-            }
-
-            @Override
-            public void addStepPhase5_Cleanup(DefaultChainedExecutable jobFlow) {
-            }
-
-        };
+        return null;
     }
 }

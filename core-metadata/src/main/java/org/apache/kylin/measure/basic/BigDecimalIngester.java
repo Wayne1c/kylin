@@ -38,9 +38,4 @@ public class BigDecimalIngester extends MeasureIngester<BigDecimal> {
         else
             return new BigDecimal(values[0]);
     }
-
-    @Override
-    public void reset() {
-
-    }
 }

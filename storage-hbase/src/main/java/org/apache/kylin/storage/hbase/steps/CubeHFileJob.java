@@ -77,7 +77,7 @@ public class CubeHFileJob extends AbstractHadoopJob {
             CubeInstance cube = cubeMgr.getCube(cubeName);
 
             // use current hbase configuration
-            Configuration configuration = new Configuration(HBaseConnection.getCurrentHBaseConfiguration());
+            Configuration configuration = HBaseConnection.getCurrentHBaseConfiguration();
             merge(configuration, getConf());
             job = Job.getInstance(configuration, getOptionValue(OPTION_JOB_NAME));
 

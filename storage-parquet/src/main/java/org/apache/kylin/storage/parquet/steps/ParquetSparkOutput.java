@@ -36,7 +36,7 @@ public class ParquetSparkOutput implements ISparkOutput {
 
             @Override
             public void addStepPhase3_BuildCube(DefaultChainedExecutable jobFlow) {
-                jobFlow.addTask(steps.convertToParquetStep(jobFlow.getId()));
+                jobFlow.addTask(steps.createConvertToParquetStep(jobFlow.getId()));
 
             }
 
@@ -58,7 +58,7 @@ public class ParquetSparkOutput implements ISparkOutput {
 
             @Override
             public void addStepPhase2_BuildCube(CubeSegment set, List<CubeSegment> mergingSegments, DefaultChainedExecutable jobFlow) {
-                jobFlow.addTask(steps.convertToParquetStep(jobFlow.getId()));
+                jobFlow.addTask(steps.createConvertToParquetStep(jobFlow.getId()));
 
             }
 

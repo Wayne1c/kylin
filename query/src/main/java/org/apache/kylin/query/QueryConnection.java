@@ -26,7 +26,6 @@ import java.util.Properties;
 
 import org.apache.calcite.jdbc.Driver;
 import org.apache.kylin.common.KylinConfig;
-import org.apache.kylin.common.debug.BackdoorToggles;
 import org.apache.kylin.query.schema.OLAPSchemaFactory;
 
 public class QueryConnection {
@@ -48,8 +47,6 @@ public class QueryConnection {
         File olapTmp = OLAPSchemaFactory.createTempOLAPJson(project, KylinConfig.getInstanceFromEnv());
         Properties info = new Properties();
         info.putAll(KylinConfig.getInstanceFromEnv().getCalciteExtrasProperties());
-        // Import calcite props from jdbc client(override the kylin.properties)
-        info.putAll(BackdoorToggles.getJdbcDriverClientCalciteProps());
         info.put("model", olapTmp.getAbsolutePath());
         info.put("typeSystem", "org.apache.kylin.query.calcite.KylinRelDataTypeSystem");
         return DriverManager.getConnection("jdbc:calcite:", info);

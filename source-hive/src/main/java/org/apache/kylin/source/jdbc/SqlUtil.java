@@ -32,7 +32,6 @@ import org.slf4j.LoggerFactory;
 
 public class SqlUtil {
     private static final Logger logger = LoggerFactory.getLogger(SqlUtil.class);
-    private static final Random r = new Random();
 
     private SqlUtil() {
         throw new IllegalStateException("Class CheckUtil is an utility class !");
@@ -62,7 +61,7 @@ public class SqlUtil {
         }
     }
 
-    public static final int tryTimes = 5;
+    public static int tryTimes = 5;
 
     public static Connection getConnection(DBConnConf dbconf) {
         if (dbconf.getUrl() == null)
@@ -75,6 +74,7 @@ public class SqlUtil {
         }
         boolean got = false;
         int times = 0;
+        Random r = new Random();
         while (!got && times < tryTimes) {
             times++;
             try {
@@ -86,12 +86,11 @@ public class SqlUtil {
                     int rt = r.nextInt(10);
                     Thread.sleep(rt * 1000);
                 } catch (InterruptedException e1) {
-                    Thread.interrupted();
                 }
             }
         }
         if (null == con) {
-            throw new IllegalStateException("Can not connect to the data source.");
+            throw new RuntimeException("Can not connect to the data source.");
         }
         return con;
     }

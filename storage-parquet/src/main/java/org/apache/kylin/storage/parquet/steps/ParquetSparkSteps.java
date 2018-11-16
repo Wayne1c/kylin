@@ -35,7 +35,7 @@ public class ParquetSparkSteps extends ParquetJobSteps {
     }
 
     @Override
-    public AbstractExecutable convertToParquetStep(String jobId) {
+    public AbstractExecutable createConvertToParquetStep(String jobId) {
 
         String cuboidRootPath = getCuboidRootPath(jobId);
         String inputPath = cuboidRootPath + (cuboidRootPath.endsWith("/") ? "" : "/");

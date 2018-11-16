@@ -72,74 +72,75 @@ public class GTFilterScanner extends GTForwardingScanner {
 
     @Override
     public Iterator<GTRecord> iterator() {
-        return new GTFilterScannerIterator();
-    }
+        return new Iterator<GTRecord>() {
 
-    private class GTFilterScannerIterator implements Iterator<GTRecord> {
-        private Iterator<GTRecord> inputIterator = delegated.iterator();
-        private FilterResultCache resultCache = new FilterResultCache(getInfo(), filter);
+            private Iterator<GTRecord> inputIterator = delegated.iterator();
+            private FilterResultCache resultCache = new FilterResultCache(getInfo(), filter);
 
-        @Override
-        public boolean hasNext() {
-            if (next != null)
-                return true;
+            @Override
+            public boolean hasNext() {
+                if (next != null)
+                    return true;
 
-            while (inputIterator.hasNext()) {
-                next = inputIterator.next();
-                inputRowCount++;
-                if (!evaluate()) {
-                    continue;
+                while (inputIterator.hasNext()) {
+                    next = inputIterator.next();
+                    inputRowCount++;
+                    if (!evaluate()) {
+                        continue;
+                    }
+                    return true;
                 }
-                return true;
-            }
-            next = null;
-            return false;
-        }
-
-        private boolean evaluate() {
-            if (checker != null && checker.shouldBypass(next)) {
+                next = null;
                 return false;
             }
 
-            if (filter == null)
-                return true;
+            private boolean evaluate() {
+                if (checker != null && checker.shouldBypass(next)) {
+                    return false;
+                }
 
-            // 'next' and 'oneTuple' are referring to the same record
-            boolean[] cachedResult = resultCache.checkCache(next);
-            if (cachedResult != null)
-                return cachedResult[0];
+                if (filter == null)
+                    return true;
 
-            boolean result = filter.evaluate(oneTuple, filterCodeSystem);
-            resultCache.setLastResult(result);
-            return result;
-        }
+                // 'next' and 'oneTuple' are referring to the same record
+                boolean[] cachedResult = resultCache.checkCache(next);
+                if (cachedResult != null)
+                    return cachedResult[0];
 
-        @Override
-        public GTRecord next() {
-            // fetch next record
-            if (next == null) {
-                hasNext();
-                if (next == null)
-                    throw new NoSuchElementException();
+                boolean result = filter.evaluate(oneTuple, filterCodeSystem);
+                resultCache.setLastResult(result);
+                return result;
             }
 
-            GTRecord result = next;
-            next = null;
-            return result;
-        }
+            @Override
+            public GTRecord next() {
+                // fetch next record
+                if (next == null) {
+                    hasNext();
+                    if (next == null)
+                        throw new NoSuchElementException();
+                }
 
-        @Override
-        public void remove() {
-            throw new UnsupportedOperationException();
-        }
+                GTRecord result = next;
+                next = null;
+                return result;
+            }
+
+            @Override
+            public void remove() {
+                throw new UnsupportedOperationException();
+            }
+
+        };
     }
 
     // cache the last one input and result, can reuse because rowkey are ordered, and same input could come in small group
     public static class FilterResultCache {
         static final int CHECKPOINT = 10000;
         static final double HIT_RATE_THRESHOLD = 0.5;
-        public static final boolean DEFAULT_OPTION = true; // enable cache by default
-        private boolean enabled = DEFAULT_OPTION;
+        public static boolean ENABLED = true; // enable cache by default
+
+        public boolean enabled = ENABLED;
         ImmutableBitSet colsInFilter;
         int count;
         int hit;
@@ -192,7 +193,7 @@ public class GTFilterScanner extends GTForwardingScanner {
         }
 
         private ImmutableBitSet collectColumnsInFilter(TupleFilter filter) {
-            Set<TblColRef> columnsInFilter = new HashSet<>();
+            Set<TblColRef> columnsInFilter = new HashSet<TblColRef>();
             TupleFilter.collectColumns(filter, columnsInFilter);
             BitSet result = new BitSet();
             for (TblColRef col : columnsInFilter)

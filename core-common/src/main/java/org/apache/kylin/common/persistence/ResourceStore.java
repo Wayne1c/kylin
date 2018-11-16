@@ -398,20 +398,17 @@ abstract public class ResourceStore {
                 origResData.put(resPath, null);
                 origResTimestamp.put(resPath, null);
             } else {
-                try {
-                    origResData.put(resPath, readAll(raw.inputStream));
-                    origResTimestamp.put(resPath, raw.timestamp);
-                } finally {
-                    IOUtils.closeQuietly(raw.inputStream);
-                }
+                origResData.put(resPath, readAll(raw.inputStream));
+                origResTimestamp.put(resPath, raw.timestamp);
             }
         }
 
         private byte[] readAll(InputStream inputStream) throws IOException {
-            try (ByteArrayOutputStream out = new ByteArrayOutputStream();) {
-                IOUtils.copy(inputStream, out);
-                return out.toByteArray();
-            }
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            IOUtils.copy(inputStream, out);
+            inputStream.close();
+            out.close();
+            return out.toByteArray();
         }
 
         public void rollback() {
@@ -496,11 +493,8 @@ abstract public class ResourceStore {
             RawResource res = from.getResource(path);
             if (res == null)
                 throw new IllegalStateException("No resource found at -- " + path);
-            try {
-                to.putResource(path, res.inputStream, res.timestamp);
-            } finally {
-                IOUtils.closeQuietly(res.inputStream);
-            }
+            to.putResource(path, res.inputStream, res.timestamp);
+            res.inputStream.close();
         }
 
         String metaDirURI = OptionsHelper.convertToFileURL(metaDir.getAbsolutePath());

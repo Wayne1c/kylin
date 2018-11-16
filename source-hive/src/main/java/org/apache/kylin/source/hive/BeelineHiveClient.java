@@ -112,8 +112,7 @@ public class BeelineHiveClient implements IHiveClient {
         ResultSet resultSet = null;
         long count = 0;
         try {
-            String query = "select count(*) from ";
-            resultSet = stmt.executeQuery(query.concat(database + "." + tableName));
+            resultSet = stmt.executeQuery("select count(*) from " + database + "." + tableName);
             if (resultSet.next()) {
                 count = resultSet.getLong(1);
             }
@@ -148,10 +147,8 @@ public class BeelineHiveClient implements IHiveClient {
         }
         builder.setAllColumns(allColumns);
         DBUtils.closeQuietly(columns);
-        String exe = "use ";
-        stmt.execute(exe.concat(database));
-        String des = "describe formatted ";
-        ResultSet resultSet = stmt.executeQuery(des.concat(tableName));
+        stmt.execute("use " + database);
+        ResultSet resultSet = stmt.executeQuery("describe formatted " + tableName);
         extractHiveTableMeta(resultSet, builder);
         DBUtils.closeQuietly(resultSet);
         return builder.createHiveTableMeta();
@@ -172,11 +169,7 @@ public class BeelineHiveClient implements IHiveClient {
 
     private void extractHiveTableMeta(ResultSet resultSet, HiveTableMetaBuilder builder) throws SQLException {
         while (resultSet.next()) {
-            parseResultEntry(resultSet, builder);
-        }
-    }
 
-    private void parseResultEntry(ResultSet resultSet, HiveTableMetaBuilder builder) throws  SQLException{
             List<HiveTableMeta.HiveTableColumnMeta> partitionColumns = Lists.newArrayList();
             if ("# Partition Information".equals(resultSet.getString(1).trim())) {
                 resultSet.next();
@@ -211,32 +204,29 @@ public class BeelineHiveClient implements IHiveClient {
                 builder.setTableType(resultSet.getString(2).trim());
             }
             if ("Table Parameters:".equals(resultSet.getString(1).trim())) {
-                extractTableParam(resultSet, builder);
+                while (resultSet.next()) {
+                    if (resultSet.getString(2) == null) {
+                        break;
+                    }
+                    if ("storage_handler".equals(resultSet.getString(2).trim())) {
+                        builder.setIsNative(false);//default is true
+                    }
+                    if ("totalSize".equals(resultSet.getString(2).trim())) {
+                        builder.setFileSize(Long.parseLong(resultSet.getString(3).trim()));//default is false
+                    }
+                    if ("numFiles".equals(resultSet.getString(2).trim())) {
+                        builder.setFileNum(Long.parseLong(resultSet.getString(3).trim()));
+                    }
+                    if ("skip.header.line.count".equals(resultSet.getString(2).trim())) {
+                        builder.setSkipHeaderLineCount(resultSet.getString(3).trim());
+                    }
+                }
             }
             if ("InputFormat:".equals(resultSet.getString(1).trim())) {
                 builder.setSdInputFormat(resultSet.getString(2).trim());
             }
             if ("OutputFormat:".equals(resultSet.getString(1).trim())) {
                 builder.setSdOutputFormat(resultSet.getString(2).trim());
-            }
-    }
-
-    private void extractTableParam(ResultSet resultSet, HiveTableMetaBuilder builder) throws SQLException {
-        while (resultSet.next()) {
-            if (resultSet.getString(2) == null) {
-                break;
-            }
-            if ("storage_handler".equals(resultSet.getString(2).trim())) {
-                builder.setIsNative(false);//default is true
-            }
-            if ("totalSize".equals(resultSet.getString(2).trim())) {
-                builder.setFileSize(Long.parseLong(resultSet.getString(3).trim()));//default is false
-            }
-            if ("numFiles".equals(resultSet.getString(2).trim())) {
-                builder.setFileNum(Long.parseLong(resultSet.getString(3).trim()));
-            }
-            if ("skip.header.line.count".equals(resultSet.getString(2).trim())) {
-                builder.setSkipHeaderLineCount(resultSet.getString(3).trim());
             }
         }
     }

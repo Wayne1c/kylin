@@ -78,9 +78,4 @@ public class SegmentAppendTrieDictBuilder implements IDictionaryBuilder {
     public Dictionary<String> build() throws IOException {
         return builder.build(baseId);
     }
-
-    @Override
-    public void clear() {
-
-    }
 }
