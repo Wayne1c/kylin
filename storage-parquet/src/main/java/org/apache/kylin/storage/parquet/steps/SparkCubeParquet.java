@@ -119,7 +119,7 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
         KylinSparkJobListener jobListener = new KylinSparkJobListener();
         try (JavaSparkContext sc = new JavaSparkContext(conf)){
             sc.sc().addSparkListener(jobListener);
-
+            sc.hadoopConfiguration().set("dfs.replication", "1");
             HadoopUtil.deletePath(sc.hadoopConfiguration(), new Path(outputPath));
             final SerializableConfiguration sConf = new SerializableConfiguration(sc.hadoopConfiguration());
 

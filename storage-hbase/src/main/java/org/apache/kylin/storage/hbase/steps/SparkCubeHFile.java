@@ -186,7 +186,7 @@ public class SparkCubeHFile extends AbstractApplication implements Serializable 
             try (FSDataInputStream confInput = hbaseClusterFs.open(new Path(hbaseConfFile))) {
                 Configuration hbaseJobConf = new Configuration();
                 hbaseJobConf.addResource(confInput);
-                hbaseJobConf.set("spark.hadoop.dfs.replication", "3"); // HFile, replication=3
+                hbaseJobConf.set("spark.hadoop.dfs.replication", "1"); // HFile, replication=3
                 Job job = Job.getInstance(hbaseJobConf, cubeSegment.getStorageLocationIdentifier());
 
                 FileOutputFormat.setOutputPath(job, new Path(outputPath));
