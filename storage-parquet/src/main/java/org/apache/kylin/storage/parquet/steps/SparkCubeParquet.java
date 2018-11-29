@@ -175,8 +175,6 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
 
         logger.info("CuboidToPartitionMapping: {}", cuboidToPartitionMapping.toString());
 
-        JavaPairRDD<Text, Text> repartitionedRDD = rdd.partitionBy(new CuboidPartitioner(cuboidToPartitionMapping));
-
         String output = BatchCubingJobBuilder2.getCuboidOutputPathsByLevel(parquetOutput, level);
 
         job.setOutputFormatClass(CustomParquetOutputFormat.class);
@@ -236,7 +234,8 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
         private SerializableConfiguration conf;
         private Map<TblColRef, String> colTypeMap;
         private Map<MeasureDesc, String> meaTypeMap;
-        private ParquetConvertor convertor;
+
+        private transient ParquetConvertor convertor;
 
         public GenerateGroupRDDFunction(String cubeName, String segmentId, String metaurl, SerializableConfiguration conf, Map<TblColRef, String> colTypeMap, Map<MeasureDesc, String> meaTypeMap) {
             this.cubeName = cubeName;

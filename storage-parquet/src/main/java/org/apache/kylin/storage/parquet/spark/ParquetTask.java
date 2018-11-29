@@ -52,7 +52,6 @@ import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 
 import static org.apache.spark.sql.functions.asc;
@@ -145,7 +144,7 @@ public class ParquetTask implements Serializable {
     public Iterator<Object[]> executeTask() {
         logger.info("Start to visit cube data with Spark SQL <<<<<<");
 
-        SQLContext sqlContext = new SQLContext(SparderEnv.getSparkSession().sparkContext());
+        SQLContext sqlContext = SparderEnv.getSparkSession().sqlContext();
 
         Dataset<Row> dataset = sqlContext.read().parquet(parquetPaths);
         ImmutableBitSet dimensions = scanRequest.getDimensions();
@@ -190,8 +189,7 @@ public class ParquetTask implements Serializable {
 
         logger.info("partitions: {}", objRDD.getNumPartitions());
 
-        List<Object[]> result = objRDD.collect();
-        return result.iterator();
+        return objRDD.toLocalIterator();
     }
 
     private Column[] getAggColumns(ImmutableBitSet metrics, CuboidToGridTableMapping mapping) {

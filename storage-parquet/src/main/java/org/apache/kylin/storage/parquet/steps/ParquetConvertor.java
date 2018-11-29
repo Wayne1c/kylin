@@ -116,15 +116,12 @@ public class ParquetConvertor {
             parseColValue(group, column, values.get(i));
         }
 
-        byte[] encodedBytes = new byte[rawValue.getLength()];
-        System.arraycopy(rawValue.getBytes(), 0, encodedBytes, 0, rawValue.getLength());
-
-        int[] valueLengths = measureCodec.getCodec().getPeekLength(ByteBuffer.wrap(encodedBytes));
+        int[] valueLengths = measureCodec.getCodec().getPeekLength(ByteBuffer.wrap(rawValue.getBytes()));
 
         int valueOffset = 0;
         for (int i = 0; i < valueLengths.length; ++i) {
             MeasureDesc measureDesc = measureDescs.get(i);
-            parseMeaValue(group, measureDesc, encodedBytes, valueOffset, valueLengths[i]);
+            parseMeaValue(group, measureDesc, rawValue.getBytes(), valueOffset, valueLengths[i]);
             valueOffset += valueLengths[i];
         }
 
