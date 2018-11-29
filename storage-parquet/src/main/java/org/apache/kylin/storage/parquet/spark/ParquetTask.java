@@ -52,7 +52,6 @@ import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 
 import static org.apache.spark.sql.functions.asc;
@@ -188,10 +187,16 @@ public class ParquetTask implements Serializable {
             }
         });
 
+        long returnRows = objRDD.count();
+
+        logger.info("returnRows: {}", returnRows);
         logger.info("partitions: {}", objRDD.getNumPartitions());
 
-        List<Object[]> result = objRDD.collect();
-        return result.iterator();
+        if (returnRows > kylinConfig.getParquetReturnThreshold()) {
+            return objRDD.toLocalIterator();
+        } else {
+            return objRDD.collect().iterator();
+        }
     }
 
     private Column[] getAggColumns(ImmutableBitSet metrics, CuboidToGridTableMapping mapping) {
