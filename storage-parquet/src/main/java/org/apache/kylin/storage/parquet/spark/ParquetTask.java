@@ -52,6 +52,7 @@ import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import static org.apache.spark.sql.functions.asc;
@@ -189,7 +190,8 @@ public class ParquetTask implements Serializable {
 
         logger.info("partitions: {}", objRDD.getNumPartitions());
 
-        return objRDD.toLocalIterator();
+        List<Object[]> result = objRDD.collect();
+        return result.iterator();
     }
 
     private Column[] getAggColumns(ImmutableBitSet metrics, CuboidToGridTableMapping mapping) {
