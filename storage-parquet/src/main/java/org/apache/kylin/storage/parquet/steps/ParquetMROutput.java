@@ -26,11 +26,17 @@ import org.apache.kylin.common.util.HadoopUtil;
 import org.apache.kylin.cube.CubeSegment;
 import org.apache.kylin.cube.cuboid.CuboidScheduler;
 import org.apache.kylin.engine.mr.IMROutput2;
+import org.apache.kylin.engine.mr.common.AbstractHadoopJob;
+import org.apache.kylin.engine.mr.common.MapReduceUtil;
+import org.apache.kylin.engine.mr.steps.HiveToBaseCuboidMapper;
+import org.apache.kylin.engine.mr.steps.InMemCuboidMapper;
+import org.apache.kylin.engine.mr.steps.NDCuboidMapper;
 import org.apache.kylin.job.execution.DefaultChainedExecutable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.Map;
 
 
 /**
@@ -78,10 +84,26 @@ public class ParquetMROutput implements IMROutput2 {
         @Override
         public void configureJobOutput(Job job, String output, CubeSegment segment, CuboidScheduler cuboidScheduler,
                                        int level) throws Exception {
+            int reducerNum = 1;
+            Class mapperClass = job.getMapperClass();
 
+            //allow user specially set config for base cuboid step
+            if (mapperClass == HiveToBaseCuboidMapper.class) {
+                for (Map.Entry<String, String> entry : segment.getConfig().getBaseCuboidMRConfigOverride().entrySet()) {
+                    job.getConfiguration().set(entry.getKey(), entry.getValue());
+                }
+            }
+
+            if (mapperClass == HiveToBaseCuboidMapper.class || mapperClass == NDCuboidMapper.class) {
+                reducerNum = MapReduceUtil.getLayeredCubingReduceTaskNum(segment, cuboidScheduler,
+                        AbstractHadoopJob.getTotalMapInputMB(job), level);
+            } else if (mapperClass == InMemCuboidMapper.class) {
+                reducerNum = MapReduceUtil.getInmemCubingReduceTaskNum(segment, cuboidScheduler);
+            }
             Path outputPath = new Path(output);
             FileOutputFormat.setOutputPath(job, outputPath);
             job.setOutputFormatClass(SequenceFileOutputFormat.class);
+            job.setNumReduceTasks(reducerNum);
             HadoopUtil.deletePath(job.getConfiguration(), outputPath);
         }
     }

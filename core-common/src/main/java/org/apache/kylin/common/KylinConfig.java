@@ -595,4 +595,8 @@ public class KylinConfig extends KylinConfigBase {
             return "";
         }
     }
+
+    public int getParquetReturnThreshold() {
+        return Integer.parseInt(getOptional("kylin.query.parquet-return-threshold", String.valueOf(2000000)));
+    }
 }

@@ -46,6 +46,7 @@ public class ParquetMRSteps extends ParquetJobSteps{
         appendExecCmdParameters(cmd, BatchConstants.ARG_CUBE_NAME, seg.getRealization().getName());
         appendExecCmdParameters(cmd, BatchConstants.ARG_INPUT, inputPath);
         appendExecCmdParameters(cmd, BatchConstants.ARG_OUTPUT, getParquetOutputPath());
+
         appendExecCmdParameters(cmd, BatchConstants.ARG_SEGMENT_ID, seg.getUuid());
         appendExecCmdParameters(cmd, BatchConstants.ARG_JOB_NAME, "Kylin_Parquet_Generator_" + seg.getRealization().getName()+ "_Step");
 

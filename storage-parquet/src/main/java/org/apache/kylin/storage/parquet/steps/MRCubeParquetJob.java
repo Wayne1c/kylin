@@ -38,11 +38,11 @@ import org.apache.kylin.cube.cuboid.Cuboid;
 import org.apache.kylin.dimension.IDimensionEncodingMap;
 import org.apache.kylin.engine.mr.common.AbstractHadoopJob;
 import org.apache.kylin.engine.mr.common.BatchConstants;
-import parquet.example.data.Group;
+import org.apache.parquet.example.data.Group;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import parquet.hadoop.example.ExampleOutputFormat;
-import parquet.schema.MessageType;
+import org.apache.parquet.hadoop.example.ExampleOutputFormat;
+import org.apache.parquet.schema.MessageType;
 
 import java.io.IOException;
 
@@ -83,6 +83,9 @@ public class MRCubeParquetJob extends AbstractHadoopJob {
         logger.info("Input path: {}", inputPath);
         logger.info("Output path: {}", outputPath);
 
+        job = Job.getInstance(getConf(), getOptionValue(OPTION_JOB_NAME));
+        setJobClasspath(job, cube.getConfig());
+
         CuboidToPartitionMapping cuboidToPartitionMapping= new CuboidToPartitionMapping(cubeSegment, kylinConfig);
         String jsonStr = cuboidToPartitionMapping.serialize();
         logger.info("Total Partition: {}", cuboidToPartitionMapping.getNumPartitions());
@@ -95,8 +98,6 @@ public class MRCubeParquetJob extends AbstractHadoopJob {
         logger.info("Schema: {}", schema.toString());
 
         try {
-            job = Job.getInstance(getConf(), getOptionValue(OPTION_JOB_NAME));
-            setJobClasspath(job, cube.getConfig());
             job.getConfiguration().set(BatchConstants.ARG_CUBOID_TO_PARTITION_MAPPING, jsonStr);
 
 

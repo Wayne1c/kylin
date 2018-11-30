@@ -37,7 +37,7 @@ import org.apache.kylin.engine.mr.common.BatchConstants;
 import org.apache.kylin.engine.mr.common.SerializableConfiguration;
 import org.apache.kylin.metadata.model.MeasureDesc;
 import org.apache.kylin.metadata.model.TblColRef;
-import parquet.example.data.Group;
+import org.apache.parquet.example.data.Group;
 
 import java.io.IOException;
 import java.util.Map;
