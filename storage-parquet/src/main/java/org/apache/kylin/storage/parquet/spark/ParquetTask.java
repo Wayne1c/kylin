@@ -18,6 +18,20 @@
 
 package org.apache.kylin.storage.parquet.spark;
 
+import static org.apache.spark.sql.functions.asc;
+import static org.apache.spark.sql.functions.callUDF;
+import static org.apache.spark.sql.functions.col;
+import static org.apache.spark.sql.functions.max;
+import static org.apache.spark.sql.functions.min;
+import static org.apache.spark.sql.functions.sum;
+
+import java.io.IOException;
+import java.io.Serializable;
+import java.lang.reflect.Field;
+import java.nio.ByteBuffer;
+import java.util.Iterator;
+import java.util.Map;
+
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -46,21 +60,6 @@ import org.apache.spark.sql.SparderEnv$;
 import org.apache.spark.sql.manager.UdfManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.io.Serializable;
-import java.lang.reflect.Field;
-import java.nio.ByteBuffer;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-
-import static org.apache.spark.sql.functions.asc;
-import static org.apache.spark.sql.functions.callUDF;
-import static org.apache.spark.sql.functions.col;
-import static org.apache.spark.sql.functions.max;
-import static org.apache.spark.sql.functions.min;
-import static org.apache.spark.sql.functions.sum;
 
 @SuppressWarnings("serial")
 public class ParquetTask implements Serializable {
@@ -188,10 +187,15 @@ public class ParquetTask implements Serializable {
             }
         });
 
-        logger.info("partitions: {}", objRDD.getNumPartitions());
+        int partitionsNum = objRDD.getNumPartitions();
 
-        List<Object[]> result = objRDD.collect();
-        return result.iterator();
+        logger.info("partitions: {}", partitionsNum);
+
+        if (partitionsNum > kylinConfig.getParquetPartitionsThreshold()) {
+            return objRDD.toLocalIterator();
+        } else {
+            return objRDD.collect().iterator();
+        }
     }
 
     private Column[] getAggColumns(ImmutableBitSet metrics, CuboidToGridTableMapping mapping) {

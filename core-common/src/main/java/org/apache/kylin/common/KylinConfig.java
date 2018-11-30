@@ -595,4 +595,8 @@ public class KylinConfig extends KylinConfigBase {
             return "";
         }
     }
+
+    public int getParquetPartitionsThreshold() {
+        return Integer.parseInt(getOptional("kylin.query.parquet-partitions-threshold", String.valueOf(10)));
+    }
 }
