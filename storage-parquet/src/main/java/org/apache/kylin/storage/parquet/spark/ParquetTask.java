@@ -18,6 +18,7 @@
 
 package org.apache.kylin.storage.parquet.spark;
 
+import com.google.common.collect.Lists;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -34,9 +35,7 @@ import org.apache.kylin.gridtable.GTScanRequest;
 import org.apache.kylin.metadata.datatype.DataType;
 import org.apache.kylin.metadata.model.MeasureDesc;
 import org.apache.kylin.metadata.model.TblColRef;
-import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.Function;
 import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -174,24 +173,35 @@ public class ParquetTask implements Serializable {
 
         // sort
         dataset = dataset.sort(getSortColumn(groupBy, mapping));
-        dataset.collect();
 
-        JavaRDD<Row> rowRDD = dataset.javaRDD();
+        Row[] rows = dataset.collect();
 
-        JavaRDD<Object[]> objRDD = rowRDD.map(new Function<Row, Object[]>() {
-            @Override
-            public Object[] call(Row row) throws Exception {
-                Object[] objects = new Object[row.length()];
-                for (int i = 0; i < row.length(); i++) {
-                    objects[i] = row.get(i);
-                }
-                return objects;
+        List<Object[]> result = Lists.newArrayListWithCapacity(rows.length);
+
+        for (Row row : rows) {
+            Object[] objects = new Object[row.length()];
+            for (int i = 0; i < row.length(); i++) {
+                objects[i] = row.get(i);
             }
-        });
+            result.add(objects);
+        }
 
-        logger.info("partitions: {}", objRDD.getNumPartitions());
-
-        List<Object[]> result = objRDD.collect();
+//        JavaRDD<Row> rowRDD = dataset.javaRDD();
+//
+//        JavaRDD<Object[]> objRDD = rowRDD.map(new Function<Row, Object[]>() {
+//            @Override
+//            public Object[] call(Row row) throws Exception {
+//                Object[] objects = new Object[row.length()];
+//                for (int i = 0; i < row.length(); i++) {
+//                    objects[i] = row.get(i);
+//                }
+//                return objects;
+//            }
+//        });
+//
+//        logger.info("partitions: {}", objRDD.getNumPartitions());
+//
+//        List<Object[]> result = objRDD.collect();
         return result.iterator();
     }
 
