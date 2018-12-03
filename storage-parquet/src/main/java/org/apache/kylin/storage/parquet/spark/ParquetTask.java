@@ -173,10 +173,9 @@ public class ParquetTask implements Serializable {
 
         // sort
         dataset = dataset.sort(getSortColumn(groupBy, mapping));
+        List<Row> rows = dataset.collectAsList();
 
-        Row[] rows = dataset.collect();
-
-        List<Object[]> result = Lists.newArrayListWithCapacity(rows.length);
+        List<Object[]> result = Lists.newArrayListWithCapacity(rows.size());
 
         for (Row row : rows) {
             Object[] objects = new Object[row.length()];
