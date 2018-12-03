@@ -174,6 +174,7 @@ public class ParquetTask implements Serializable {
 
         // sort
         dataset = dataset.sort(getSortColumn(groupBy, mapping));
+        dataset.collect();
 
         JavaRDD<Row> rowRDD = dataset.javaRDD();
 
