@@ -18,6 +18,7 @@
 
 package org.apache.kylin.storage.parquet.spark;
 
+import com.google.common.collect.Lists;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -39,9 +40,7 @@ import org.apache.kylin.metadata.datatype.DataType;
 import org.apache.kylin.metadata.model.FunctionDesc;
 import org.apache.kylin.metadata.model.MeasureDesc;
 import org.apache.kylin.metadata.model.TblColRef;
-import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.Function;
 import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -180,18 +179,18 @@ public class ParquetTask implements Serializable {
         // sort
         dataset = dataset.sort(getSortColumn(groupBy, mapping));
 
-        JavaRDD<Object[]> objRDD = dataset.javaRDD().map((Function<Row, Object[]>) row -> {
+        // TODO: optimize the way to collect data.
+        List<Row> rows = dataset.collectAsList();
+        List<Object[]> result = Lists.newArrayListWithCapacity(rows.size());
+
+        for (Row row : rows) {
             Object[] objects = new Object[row.length()];
             for (int i = 0; i < row.length(); i++) {
                 objects[i] = row.get(i);
             }
-            return objects;
-        });
+            result.add(objects);
+        }
 
-        logger.debug("partitions: {}", objRDD.getNumPartitions());
-
-        // TODO: optimize the way to collect data.
-        List<Object[]> result = objRDD.collect();
         return result.iterator();
     }
 
