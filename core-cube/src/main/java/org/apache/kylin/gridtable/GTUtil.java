@@ -28,12 +28,8 @@ import com.google.common.collect.Lists;
 import org.apache.kylin.common.util.ByteArray;
 import org.apache.kylin.common.util.BytesUtil;
 import org.apache.kylin.cube.gridtable.CuboidToGridTableMapping;
-import org.apache.kylin.dimension.AbstractDateDimEnc;
 import org.apache.kylin.dimension.DictionaryDimEnc;
 import org.apache.kylin.dimension.DimensionEncoding;
-import org.apache.kylin.dimension.FixedLenDimEnc;
-import org.apache.kylin.dimension.IntDimEnc;
-import org.apache.kylin.dimension.IntegerDimEnc;
 import org.apache.kylin.metadata.datatype.DataTypeSerializer;
 import org.apache.kylin.metadata.expression.TupleExpression;
 import org.apache.kylin.metadata.expression.TupleExpressionSerializer;
@@ -240,18 +236,7 @@ public class GTUtil {
                 info.codeSystem.encodeColumnValue(col, value, roundingFlag, buf);
                 DataTypeSerializer serializer = dimEnc.asDataTypeSerializer();
                 buf.flip();
-                if (dimEnc instanceof DictionaryDimEnc) {
-                    int id = BytesUtil.readUnsigned(buf, dimEnc.getLengthOfEncoding());
-                    return id;
-                } else if (dimEnc instanceof AbstractDateDimEnc) {
-                    return Long.valueOf((String)serializer.deserialize(buf));
-                } else if (dimEnc instanceof FixedLenDimEnc) {
-                    return serializer.deserialize(buf);
-                } else if (dimEnc instanceof IntegerDimEnc || dimEnc instanceof IntDimEnc) {
-                    return Integer.valueOf((String)serializer.deserialize(buf));
-                } else {
-                    return value;
-                }
+                return serializer.deserialize(buf);
             } catch (IllegalArgumentException ex) {
                 return null;
             }

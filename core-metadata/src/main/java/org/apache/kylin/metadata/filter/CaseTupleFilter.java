@@ -165,4 +165,7 @@ public class CaseTupleFilter extends TupleFilter implements IOptimizeableTupleFi
         return transformer.visit(this);
     }
 
+    public <R> R accept(TupleFilterVisitor<R> visitor) {
+        return visitor.visitCase(this);
+    }
 }

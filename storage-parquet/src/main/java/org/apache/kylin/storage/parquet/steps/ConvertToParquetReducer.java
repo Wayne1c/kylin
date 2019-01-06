@@ -36,7 +36,6 @@ import org.apache.kylin.engine.mr.common.AbstractHadoopJob;
 import org.apache.kylin.engine.mr.common.BatchConstants;
 import org.apache.kylin.engine.mr.common.SerializableConfiguration;
 import org.apache.kylin.metadata.model.MeasureDesc;
-import org.apache.kylin.metadata.model.TblColRef;
 import org.apache.parquet.example.data.Group;
 
 import java.io.IOException;
@@ -66,9 +65,9 @@ public class ConvertToParquetReducer extends KylinReducer<Text, Text, NullWritab
         final IDimensionEncodingMap dimEncMap = cubeSegment.getDimensionEncodingMap();
         SerializableConfiguration sConf = new SerializableConfiguration(conf);
 
-        Map<TblColRef, String> colTypeMap = Maps.newHashMap();
+        Map<String, String> colTypeMap = Maps.newHashMap();
         Map<MeasureDesc, String> measureTypeMap = Maps.newHashMap();
-        ParquetConvertor.generateTypeMap(baseCuboid, dimEncMap, cube.getDescriptor(), colTypeMap, measureTypeMap);
+        //ParquetConvertor.generateTypeMap(baseCuboid, dimEncMap, cube.getDescriptor(), colTypeMap, measureTypeMap);
         convertor = new ParquetConvertor(cubeName, segmentId, kylinConfig, sConf, colTypeMap, measureTypeMap);
     }
 

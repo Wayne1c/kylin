@@ -43,6 +43,6 @@ public class DefaultStoragePathBuilder implements IStoragePathBuilder {
         String cubeName = cubeSegment.getRealization().getName();
         String segName = cubeSegment.getName();
 
-        return workingDir + SLASH + cubeName + SLASH + segName;
+        return workingDir + cubeName + SLASH + segName;
     }
 }

@@ -166,4 +166,9 @@ public class ColumnTupleFilter extends TupleFilter {
     public String toSQL() {
         return this.columnRef.getTableAlias() + "_" + this.columnRef.getName();
     }
+
+    @Override
+    public <R> R accept(TupleFilterVisitor<R> visitor) {
+        return visitor.visitColumn(this);
+    }
 }

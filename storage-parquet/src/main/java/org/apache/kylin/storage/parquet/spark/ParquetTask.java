@@ -157,10 +157,6 @@ public class ParquetTask implements Serializable {
         ImmutableBitSet metrics = scanRequest.getAggrMetrics();
         ImmutableBitSet groupBy = scanRequest.getAggrGroupBy();
 
-        // select
-        Column[] selectColumn = getSelectColumn(dimensions, metrics, mapping);
-        dataset = dataset.select(selectColumn);
-
         // where
         String where = scanRequest.getFilterPushDownSQL();
         if (where != null) {
@@ -174,8 +170,12 @@ public class ParquetTask implements Serializable {
         if (aggCols.length >= 1) {
             tailCols = new Column[aggCols.length - 1];
             System.arraycopy(aggCols, 1, tailCols, 0, tailCols.length);
-            dataset = dataset.groupBy(getGroupByColumn(dimensions, mapping)).agg(aggCols[0], tailCols);
+            dataset = dataset.groupBy(getGroupByColumn(groupBy, mapping)).agg(aggCols[0], tailCols);
         }
+
+        // select
+        Column[] selectColumn = getSelectColumn(groupBy, metrics, mapping);
+        dataset = dataset.select(selectColumn);
 
         // sort
         dataset = dataset.sort(getSortColumn(groupBy, mapping));

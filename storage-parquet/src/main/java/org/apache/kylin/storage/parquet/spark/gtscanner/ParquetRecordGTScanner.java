@@ -102,7 +102,7 @@ public abstract class ParquetRecordGTScanner implements IGTScanner {
                         int c = ParquetRecordGTScanner.this.columns.trueBitAt(i);
                         DataTypeSerializer serializer = info.getCodeSystem().getSerializer(c);
                         if (serializer instanceof DictionaryDimEnc.DictionarySerializer) {
-                            dictCols.put(i, c);
+                            otherCols.put(i, c);
                         } else if (serializer instanceof TopNCounterSerializer || serializer instanceof HLLCSerializer
                                 || serializer instanceof BitmapSerializer
                                 || serializer instanceof ExtendedColumnSerializer

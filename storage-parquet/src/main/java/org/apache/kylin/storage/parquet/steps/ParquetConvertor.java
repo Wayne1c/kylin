@@ -24,14 +24,16 @@ import org.apache.kylin.cube.CubeInstance;
 import org.apache.kylin.cube.CubeManager;
 import org.apache.kylin.cube.CubeSegment;
 import org.apache.kylin.cube.cuboid.Cuboid;
+import org.apache.kylin.cube.gridtable.CuboidToGridTableMapping;
 import org.apache.kylin.cube.kv.RowKeyDecoder;
-import org.apache.kylin.cube.kv.RowKeyDecoderParquet;
 import org.apache.kylin.cube.model.CubeDesc;
 import org.apache.kylin.dimension.AbstractDateDimEnc;
 import org.apache.kylin.dimension.DimensionEncoding;
 import org.apache.kylin.dimension.FixedLenDimEnc;
 import org.apache.kylin.dimension.FixedLenHexDimEnc;
 import org.apache.kylin.dimension.IDimensionEncodingMap;
+import org.apache.kylin.dimension.IntDimEnc;
+import org.apache.kylin.dimension.IntegerDimEnc;
 import org.apache.kylin.engine.mr.common.SerializableConfiguration;
 import org.apache.kylin.measure.BufferedMeasureCodec;
 import org.apache.kylin.measure.MeasureIngester;
@@ -69,22 +71,24 @@ public class ParquetConvertor {
     private static final Logger logger = LoggerFactory.getLogger(ParquetConvertor.class);
 
     public static final String FIELD_CUBOID_ID = "cuboidId";
-    public static final String DATATYPE_DECIMAL = "decimal";
+    public static final String DATATYPE_BOOLEAN = "boolean";
     public static final String DATATYPE_INT = "int";
     public static final String DATATYPE_LONG = "long";
+    public static final String DATATYPE_FLOAT = "float";
     public static final String DATATYPE_DOUBLE = "double";
+    public static final String DATATYPE_DECIMAL = "decimal";
     public static final String DATATYPE_STRING = "string";
     public static final String DATATYPE_BINARY = "binary";
 
     private RowKeyDecoder decoder;
     private BufferedMeasureCodec measureCodec;
-    private Map<TblColRef, String> colTypeMap;
+    private Map<String, String> colTypeMap;
     private Map<MeasureDesc, String> meaTypeMap;
     private BigDecimalSerializer serializer;
     private GroupFactory factory;
     private List<MeasureDesc> measureDescs;
 
-    public ParquetConvertor(String cubeName, String segmentId, KylinConfig kConfig, SerializableConfiguration sConf, Map<TblColRef, String> colTypeMap, Map<MeasureDesc, String> meaTypeMap){
+    public ParquetConvertor(String cubeName, String segmentId, KylinConfig kConfig, SerializableConfiguration sConf, Map<String, String> colTypeMap, Map<MeasureDesc, String> meaTypeMap){
         KylinConfig.setAndUnsetThreadLocalConfig(kConfig);
 
         this.colTypeMap = colTypeMap;
@@ -92,10 +96,11 @@ public class ParquetConvertor {
         serializer = new BigDecimalSerializer(DataType.getType(DATATYPE_DECIMAL));
 
         CubeInstance cubeInstance = CubeManager.getInstance(kConfig).getCube(cubeName);
+
         CubeDesc cubeDesc = cubeInstance.getDescriptor();
         CubeSegment cubeSegment = cubeInstance.getSegmentById(segmentId);
         measureDescs = cubeDesc.getMeasures();
-        decoder = new RowKeyDecoderParquet(cubeSegment);
+        decoder = new RowKeyDecoder(cubeSegment);
         factory = new SimpleGroupFactory(GroupWriteSupport.getSchema(sConf.get()));
         measureCodec = new BufferedMeasureCodec(cubeDesc.getMeasures());
     }
@@ -132,16 +137,38 @@ public class ParquetConvertor {
             logger.error("value is null");
             return;
         }
-        switch (colTypeMap.get(colRef)) {
+        String colName = getColName(colRef);
+        String dataType = colTypeMap.get(colName);
+
+        switch (dataType) {
+            case DATATYPE_BOOLEAN:
+                group.append(colName, Boolean.valueOf(value));
+                break;
             case DATATYPE_INT:
-                group.append(colRef.getTableAlias() + "_" + colRef.getName(), Integer.valueOf(value));
+                group.append(colName, Integer.valueOf(value));
                 break;
             case DATATYPE_LONG:
-                group.append(colRef.getTableAlias() + "_" + colRef.getName(), Long.valueOf(value));
+                group.append(colName, Long.valueOf(value));
+                break;
+            case DATATYPE_FLOAT:
+                group.append(colName, Float.valueOf(value));
+                break;
+            case DATATYPE_DOUBLE:
+                group.append(colName, Double.valueOf(value));
+                break;
+            case DATATYPE_DECIMAL:
+                BigDecimal decimal = BigDecimal.valueOf(Long.valueOf(value));
+                decimal.setScale(colRef.getType().getScale());
+                group.append(colName, Binary.fromReusedByteArray(decimal.unscaledValue().toByteArray()));
+                break;
+            case DATATYPE_STRING:
+                group.append(colName, value);
+                break;
+            case DATATYPE_BINARY:
+                group.append(colName, Binary.fromString(value));
                 break;
             default:
-                group.append(colRef.getTableAlias() + "_" + colRef.getName(), Binary.fromString(value));
-                break;
+                group.append(colName, Binary.fromString(value));
         }
     }
 
@@ -150,34 +177,46 @@ public class ParquetConvertor {
             logger.error("value is null");
             return;
         }
-        switch (meaTypeMap.get(measureDesc)) {
+        String meaName = measureDesc.getName();
+        String dataType = colTypeMap.get(meaName);
+        switch (dataType) {
+            case DATATYPE_INT:
+                group.append(meaName, BytesUtil.readVInt(ByteBuffer.wrap(value, offset, length)));
+                break;
             case DATATYPE_LONG:
-                group.append(measureDesc.getName(), BytesUtil.readVLong(ByteBuffer.wrap(value, offset, length)));
+                group.append(meaName,  BytesUtil.readVLong(ByteBuffer.wrap(value, offset, length)));
+                break;
+            case DATATYPE_FLOAT:
+                group.append(meaName, ByteBuffer.wrap(value, offset, length).getFloat());
                 break;
             case DATATYPE_DOUBLE:
-                group.append(measureDesc.getName(), ByteBuffer.wrap(value, offset, length).getDouble());
+                group.append(meaName, ByteBuffer.wrap(value, offset, length).getDouble());
                 break;
             case DATATYPE_DECIMAL:
                 BigDecimal decimal = serializer.deserialize(ByteBuffer.wrap(value, offset, length));
-                decimal = decimal.setScale(4);
-                group.append(measureDesc.getName(), Binary.fromReusedByteArray(decimal.unscaledValue().toByteArray()));
+                decimal = decimal.setScale(measureDesc.getFunction().getReturnDataType().getScale());
+                group.append(meaName, Binary.fromReusedByteArray(decimal.unscaledValue().toByteArray()));
+                break;
+            case DATATYPE_BINARY:
+                group.append(meaName, Binary.fromReusedByteArray(value, offset, length));
                 break;
             default:
-                group.append(measureDesc.getName(), Binary.fromReusedByteArray(value, offset, length));
-                break;
+                group.append(meaName, Binary.fromReusedByteArray(value, offset, length));
         }
     }
 
-    protected static MessageType cuboidToMessageType(Cuboid cuboid, IDimensionEncodingMap dimEncMap, CubeDesc cubeDesc) {
+    protected static MessageType cuboidToMessageType(Cuboid cuboid, IDimensionEncodingMap dimEncMap, CubeDesc cubeDesc, Map<String, String> colTypeMap) {
         Types.MessageTypeBuilder builder = Types.buildMessage();
-
+        CuboidToGridTableMapping mapping = new CuboidToGridTableMapping(cuboid);
+        DataType[] dataTypes = mapping.getDataTypes();
         List<TblColRef> colRefs = cuboid.getColumns();
 
         builder.optional(PrimitiveType.PrimitiveTypeName.INT64).named(FIELD_CUBOID_ID);
 
         for (TblColRef colRef : colRefs) {
-            DimensionEncoding dimEnc = dimEncMap.get(colRef);
-            colToMessageType(dimEnc, colRef, builder);
+            DataType dataType = dataTypes[mapping.getIndexOf(colRef)];
+            //DimensionEncoding dimEnc = dimEncMap.get(colRef);
+            colToMessageType(dataType, getColName(colRef), builder, colTypeMap);
         }
 
         MeasureIngester[] aggrIngesters = MeasureIngester.create(cubeDesc.getMeasures());
@@ -185,9 +224,8 @@ public class ParquetConvertor {
         for (int i = 0; i < cubeDesc.getMeasures().size(); i++) {
             MeasureDesc measureDesc = cubeDesc.getMeasures().get(i);
             DataType meaDataType = measureDesc.getFunction().getReturnDataType();
-            MeasureType measureType = measureDesc.getFunction().getMeasureType();
 
-            meaColToMessageType(measureType, measureDesc.getName(), meaDataType, aggrIngesters[i], builder);
+            colToMessageType(meaDataType, measureDesc.getName(), builder, colTypeMap);
         }
 
         return builder.named(String.valueOf(cuboid.getId()));
@@ -209,7 +247,7 @@ public class ParquetConvertor {
             addMeaColTypeMap(measureType, measureDesc, aggrIngesters[i], meaTypeMap);
         }
     }
-    private static String getColName(TblColRef colRef) {
+    public static String getColName(TblColRef colRef) {
         return colRef.getTableAlias() + "_" + colRef.getName();
     }
 
@@ -224,8 +262,10 @@ public class ParquetConvertor {
                 // stringFamily && default
                 colTypeMap.put(colRef, DATATYPE_STRING);
             }
-        } else {
+        } else if(dimEnc instanceof IntegerDimEnc || dimEnc instanceof IntDimEnc) {
             colTypeMap.put(colRef, DATATYPE_INT);
+        } else {
+            colTypeMap.put(colRef, DATATYPE_STRING);
         }
     }
 
@@ -247,20 +287,51 @@ public class ParquetConvertor {
         return meaTypeMap;
     }
 
-    private static void colToMessageType(DimensionEncoding dimEnc, TblColRef colRef, Types.MessageTypeBuilder builder) {
-        if (dimEnc instanceof AbstractDateDimEnc) {
-            builder.optional(PrimitiveType.PrimitiveTypeName.INT64).named(getColName(colRef));
-        } else if (dimEnc instanceof FixedLenDimEnc || dimEnc instanceof FixedLenHexDimEnc) {
-            DataType colDataType = colRef.getType();
-            if (colDataType.isNumberFamily() || colDataType.isDateTimeFamily()){
-                builder.optional(PrimitiveType.PrimitiveTypeName.INT64).named(getColName(colRef));
-            } else {
-                // stringFamily && default
-                builder.optional(PrimitiveType.PrimitiveTypeName.BINARY).as(OriginalType.UTF8).named(getColName(colRef));
-            }
+    private static void colToMessageType(DataType dataType, String name, Types.MessageTypeBuilder builder, Map<String, String> colTypeMap) {
+        if (dataType.isBoolean()) {
+            builder.optional(PrimitiveType.PrimitiveTypeName.BOOLEAN).named(name);
+            colTypeMap.put(name, "boolean");
+        } else if (dataType.isInt()) {
+            builder.optional(PrimitiveType.PrimitiveTypeName.INT32).named(name);
+            colTypeMap.put(name, "int");
+        } else if (dataType.isBigInt()) {
+            builder.optional(PrimitiveType.PrimitiveTypeName.INT64).named(name);
+            colTypeMap.put(name, "long");
+        } else if (dataType.isDate()) {
+            builder.optional(PrimitiveType.PrimitiveTypeName.INT64).named(name);
+            colTypeMap.put(name, "long");
+        } else if (dataType.isFloat()) {
+            builder.optional(PrimitiveType.PrimitiveTypeName.FLOAT).named(name);
+            colTypeMap.put(name, "float");
+        } else if (dataType.isDouble()) {
+            builder.optional(PrimitiveType.PrimitiveTypeName.DOUBLE).named(name);
+            colTypeMap.put(name, "double");
+        } else if (dataType.isDecimal()) {
+            builder.required(PrimitiveType.PrimitiveTypeName.BINARY).as(OriginalType.DECIMAL).precision(dataType.getPrecision()).scale(dataType.getScale()).named(name);
+            colTypeMap.put(name, "decimal");
+        } else if (dataType.isStringFamily()) {
+            builder.optional(PrimitiveType.PrimitiveTypeName.BINARY).as(OriginalType.UTF8).named(name);
+            colTypeMap.put(name, "string");
         } else {
-            builder.optional(PrimitiveType.PrimitiveTypeName.INT32).named(getColName(colRef));
+            builder.optional(PrimitiveType.PrimitiveTypeName.BINARY).named(name);
+            colTypeMap.put(name, "binary");
         }
+
+//        if (dimEnc instanceof AbstractDateDimEnc) {
+//            builder.optional(PrimitiveType.PrimitiveTypeName.INT64).named(getColName(colRef));
+//        } else if (dimEnc instanceof FixedLenDimEnc || dimEnc instanceof FixedLenHexDimEnc) {
+//            DataType colDataType = colRef.getType();
+//            if (colDataType.isNumberFamily() || colDataType.isDateTimeFamily()){
+//                builder.optional(PrimitiveType.PrimitiveTypeName.INT64).named(getColName(colRef));
+//            } else {
+//                // stringFamily && default
+//                builder.optional(PrimitiveType.PrimitiveTypeName.BINARY).as(OriginalType.UTF8).named(getColName(colRef));
+//            }
+//        } else if (dimEnc instanceof IntegerDimEnc || dimEnc instanceof IntDimEnc) {
+//            builder.optional(PrimitiveType.PrimitiveTypeName.INT32).named(getColName(colRef));
+//        } else {
+//            builder.optional(PrimitiveType.PrimitiveTypeName.BINARY).as(OriginalType.UTF8).named(getColName(colRef));
+//        }
     }
 
     private static void meaColToMessageType(MeasureType measureType, String meaDescName, DataType meaDataType, MeasureIngester aggrIngester, Types.MessageTypeBuilder builder) {

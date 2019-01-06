@@ -111,5 +111,11 @@ public class ITKylinQuery2Test extends ITKylinQueryTest {
     public void testStreamingTableQuery() throws Exception {
         logger.info("StreamingTableQuery ignored.");
     }
+
+    @Override
+    @Test
+    public void testTopNQuery() throws Exception {
+        logger.info("TopNQuery ignored.");
+    }
 }
                                                   

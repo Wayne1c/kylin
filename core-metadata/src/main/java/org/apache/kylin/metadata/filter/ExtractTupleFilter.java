@@ -127,4 +127,9 @@ public class ExtractTupleFilter extends TupleFilter {
         return "1=1";
     }
 
+    @Override
+    public <R> R accept(TupleFilterVisitor<R> visitor) {
+        return visitor.visitExtract(this);
+    }
+
 }

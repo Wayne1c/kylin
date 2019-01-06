@@ -17,6 +17,7 @@
 */
 package org.apache.kylin.storage.parquet.steps;
 
+import com.google.common.collect.Maps;
 import org.apache.commons.cli.Options;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
@@ -92,7 +93,7 @@ public class MRCubeParquetJob extends AbstractHadoopJob {
 
         Cuboid baseCuboid = Cuboid.getBaseCuboid(cubeSegment.getCubeDesc());
 
-        MessageType schema = ParquetConvertor.cuboidToMessageType(baseCuboid, dimEncMap, cubeSegment.getCubeDesc());
+        MessageType schema = ParquetConvertor.cuboidToMessageType(baseCuboid, dimEncMap, cubeSegment.getCubeDesc(), Maps.newHashMap());
         logger.info("Schema: {}", schema);
 
         try {

@@ -1183,6 +1183,18 @@ public class CubeDesc extends RootPersistentEntity implements IEngineAware {
         }
     }
 
+    public List<DeriveInfo> getDeriveInfos(List<TblColRef> rowCols) {
+        List<DeriveInfo> result = new ArrayList<>();
+        for (Entry<Array<TblColRef>, List<DeriveInfo>> entry : hostToDerivedMap.entrySet()) {
+            Array<TblColRef> hostCols = entry.getKey();
+            boolean hostOnRow = rowCols.containsAll(Arrays.asList(hostCols.data));
+            if (hostOnRow) {
+                result.addAll(entry.getValue());
+            }
+        }
+        return result;
+    }
+
     private Set<TableRef> collectTablesOnJoinChain(Set<TblColRef> columns) {
         Set<TableRef> result = new HashSet<>();
         for (TblColRef col : columns) {

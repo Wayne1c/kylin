@@ -32,4 +32,9 @@ public class CubeStorageQuery extends GTCubeStorageQueryBase {
     protected String getGTStorage() {
         return KylinConfig.getInstanceFromEnv().getSparkCubeGTStorage();
     }
+
+    @Override
+    public boolean keepRuntimeFilter() {
+        return true;
+    }
 }

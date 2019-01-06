@@ -45,7 +45,6 @@ import org.apache.kylin.engine.spark.KylinSparkJobListener;
 import org.apache.kylin.engine.spark.SparkUtil;
 import org.apache.kylin.job.constant.ExecutableConstants;
 import org.apache.kylin.metadata.model.MeasureDesc;
-import org.apache.kylin.metadata.model.TblColRef;
 import org.apache.parquet.example.data.Group;
 import org.apache.parquet.hadoop.ParquetOutputFormat;
 import org.apache.parquet.hadoop.example.GroupWriteSupport;
@@ -137,14 +136,14 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
             logger.info("Input path: {}", inputPath);
             logger.info("Output path: {}", outputPath);
 
-            final Map<TblColRef, String> colTypeMap = Maps.newHashMap();
+            final Map<String, String> colTypeMap = Maps.newHashMap();
             final Map<MeasureDesc, String> meaTypeMap = Maps.newHashMap();
 
             final IDimensionEncodingMap dimEncMap = cubeSegment.getDimensionEncodingMap();
 
             Cuboid baseCuboid = Cuboid.getBaseCuboid(cubeSegment.getCubeDesc());
-            MessageType schema = ParquetConvertor.cuboidToMessageType(baseCuboid, dimEncMap, cubeSegment.getCubeDesc());
-            ParquetConvertor.generateTypeMap(baseCuboid, dimEncMap, cubeSegment.getCubeDesc(), colTypeMap, meaTypeMap);
+            MessageType schema = ParquetConvertor.cuboidToMessageType(baseCuboid, dimEncMap, cubeSegment.getCubeDesc(), colTypeMap);
+            //ParquetConvertor.generateTypeMap(baseCuboid, dimEncMap, cubeSegment.getCubeDesc(), colTypeMap, meaTypeMap);
             GroupWriteSupport.setSchema(schema, job.getConfiguration());
 
             GenerateGroupRDDFunction groupPairFunction = new GenerateGroupRDDFunction(cubeName, cubeSegment.getUuid(),
@@ -239,13 +238,13 @@ public class SparkCubeParquet extends AbstractApplication implements Serializabl
         private String segmentId;
         private String metaUrl;
         private SerializableConfiguration conf;
-        private Map<TblColRef, String> colTypeMap;
+        private Map<String, String> colTypeMap;
         private Map<MeasureDesc, String> meaTypeMap;
 
         private transient ParquetConvertor convertor;
 
         public GenerateGroupRDDFunction(String cubeName, String segmentId, String metaurl,
-                SerializableConfiguration conf, Map<TblColRef, String> colTypeMap,
+                SerializableConfiguration conf, Map<String, String> colTypeMap,
                 Map<MeasureDesc, String> meaTypeMap) {
             this.cubeName = cubeName;
             this.segmentId = segmentId;
