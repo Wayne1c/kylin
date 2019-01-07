@@ -18,6 +18,7 @@
 
 package org.apache.kylin.storage.parquet;
 
+import org.apache.kylin.common.KylinConfig;
 import org.apache.kylin.cube.CubeInstance;
 import org.apache.kylin.engine.mr.IMROutput2;
 import org.apache.kylin.engine.spark.ISparkOutput;
@@ -25,6 +26,7 @@ import org.apache.kylin.metadata.realization.IRealization;
 import org.apache.kylin.metadata.realization.RealizationType;
 import org.apache.kylin.storage.IStorage;
 import org.apache.kylin.storage.IStorageQuery;
+import org.apache.kylin.storage.parquet.cube.CubeStorageQuery;
 import org.apache.kylin.storage.parquet.cube.ParquetStorageQuery;
 import org.apache.kylin.storage.parquet.steps.ParquetMROutput;
 import org.apache.kylin.storage.parquet.steps.ParquetSparkOutput;
@@ -33,7 +35,12 @@ public class ParquetStorage implements IStorage {
     @Override
     public IStorageQuery createQuery(IRealization realization) {
         if (realization.getType() == RealizationType.CUBE) {
-            return new ParquetStorageQuery((CubeInstance) realization);
+            KylinConfig config = KylinConfig.getInstanceFromEnv();
+            if (config.removeDict()) {
+                return new ParquetStorageQuery((CubeInstance) realization);
+            } else {
+                return new CubeStorageQuery((CubeInstance) realization);
+            }
         } else {
             throw new IllegalStateException(
                     "Unsupported realization type for ParquetStorage: " + realization.getType());

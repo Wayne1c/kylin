@@ -18,45 +18,34 @@
 
 package org.apache.kylin.storage.parquet.cube;
 
+import java.util.Objects;
+
 import org.apache.kylin.measure.MeasureType;
-import org.apache.kylin.measure.bitmap.BitmapMeasureType;
 import org.apache.kylin.measure.extendedcolumn.ExtendedColumnMeasureType;
-import org.apache.kylin.measure.hllc.HLLCMeasureType;
-import org.apache.kylin.measure.percentile.PercentileMeasureType;
-import org.apache.kylin.metadata.datatype.DataTypeSerializer;
 import org.apache.kylin.metadata.model.FunctionDesc;
 import org.apache.kylin.metadata.model.MeasureDesc;
 import org.apache.kylin.metadata.model.TblColRef;
 import org.apache.kylin.metadata.tuple.Tuple;
 import org.apache.kylin.metadata.tuple.TupleInfo;
-
-import java.nio.ByteBuffer;
-import java.util.List;
-import java.util.Objects;
+import org.apache.kylin.storage.parquet.ParquetSchema;
 
 public class ParquetColumnFiller implements ColumnFiller {
-    private final List<TblColRef> dimensions;
-    private final List<MeasureDesc> measures;
-
+    private final ParquetSchema schema;
     private final int[] tupleIndex;
     private final MeasureType[] measureTypes;
-    private final DataTypeSerializer[] serializers;
 
-    public ParquetColumnFiller(List<TblColRef> dimensions, List<MeasureDesc> measures, TupleInfo tupleInfo) {
-        this.dimensions = dimensions;
-        this.measures = measures;
-        this.tupleIndex = new int[dimensions.size() + measures.size()];
-        this.measureTypes = new MeasureType[dimensions.size() + measures.size()];
-        this.serializers = new DataTypeSerializer[measures.size()];
+    public ParquetColumnFiller(ParquetSchema schema, TupleInfo tupleInfo) {
+        this.schema = schema;
+        this.tupleIndex = new int[schema.getTotalFieldCount()];
+        this.measureTypes = new MeasureType[schema.getTotalFieldCount()];
 
         int i = 0;
-        for (TblColRef dim : dimensions) {
+        for (TblColRef dim : schema.getDimensions()) {
             tupleIndex[i++] = tupleInfo.getColumnIndex(dim);
         }
-        for (MeasureDesc met : measures) {
+        for (MeasureDesc met : schema.getMeasures()) {
             FunctionDesc func = met.getFunction();
             MeasureType<?> measureType = func.getMeasureType();
-            serializers[i - dimensions.size()] = DataTypeSerializer.create(met.getFunction().getReturnDataType());
 
             if (func.needRewrite()) {
                 String fieldName = func.getRewriteFieldName();
@@ -81,20 +70,13 @@ public class ParquetColumnFiller implements ColumnFiller {
     }
 
     public void fill(Object[] row, Tuple tuple) {
-        for (int i = 0; i < dimensions.size(); i++) {
+        for (int i = 0; i < schema.getDimensions().size(); i++) {
             tuple.setDimensionValue(tupleIndex[i], Objects.toString(row[i], null));
         }
 
-        for (int i = dimensions.size(); i < dimensions.size() + measures.size(); i++) {
-            MeasureType measureType = measureTypes[i];
-            if (measureType != null) {
-                if (measureType instanceof HLLCMeasureType ||
-                        measureType instanceof BitmapMeasureType ||
-                        measureType instanceof PercentileMeasureType) {
-                    tuple.setMeasureValue(tupleIndex[i], serializers[i - dimensions.size()].deserialize(ByteBuffer.wrap((byte[])row[i])));
-                } else {
-                    measureTypes[i].fillTupleSimply(tuple, tupleIndex[i], row[i]);
-                }
+        for (int i = schema.getDimensions().size(); i < schema.getTotalFieldCount(); i++) {
+            if (measureTypes[i] != null) {
+                measureTypes[i].fillTupleSimply(tuple, tupleIndex[i], row[i]);
             } else {
                 //for ExtendedColumn
                 tuple.setDimensionValue(tupleIndex[i], (String) row[i]);

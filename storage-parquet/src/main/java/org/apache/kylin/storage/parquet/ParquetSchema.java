@@ -18,9 +18,7 @@
 
 package org.apache.kylin.storage.parquet;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.kylin.metadata.model.MeasureDesc;
 import org.apache.kylin.metadata.model.TblColRef;
@@ -28,29 +26,16 @@ import org.apache.kylin.metadata.model.TblColRef;
 import com.google.common.collect.ImmutableList;
 
 public class ParquetSchema implements NameMapping {
-    public static final String ID_COL = "_CUBOID_ID_";
+    public static final String CUBOID_ID = "CUBOID_ID";
 
     private final NameMapping mapping;
     private final List<TblColRef> dimensions;
     private final List<MeasureDesc> measures;
 
-    // computed
-    private Map<String, Integer> indexByName = new HashMap<>();
-
     public ParquetSchema(NameMapping mapping, List<TblColRef> dimensions, List<MeasureDesc> measures) {
         this.mapping = mapping;
         this.dimensions = ImmutableList.copyOf(dimensions);
         this.measures = ImmutableList.copyOf(measures);
-
-        int fieldIndex = 0;
-        for (TblColRef dim : dimensions) {
-            String fieldName = getDimFieldName(dim);
-            indexByName.put(fieldName, fieldIndex++);
-        }
-        for (MeasureDesc measure : measures) {
-            String fieldName = getMeasureFieldName(measure);
-            indexByName.put(fieldName, fieldIndex++);
-        }
     }
 
     @Override
@@ -73,9 +58,5 @@ public class ParquetSchema implements NameMapping {
 
     public int getTotalFieldCount() {
         return dimensions.size() + measures.size();
-    }
-
-    public int getFieldIndex(String field) {
-        return indexByName.get(field);
     }
 }

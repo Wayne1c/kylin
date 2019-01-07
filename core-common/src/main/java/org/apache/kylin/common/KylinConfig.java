@@ -595,4 +595,8 @@ public class KylinConfig extends KylinConfigBase {
             return "";
         }
     }
+
+    public boolean removeDict() {
+        return Boolean.parseBoolean(getOptional("kylin.storage.parquet.remove.dict", "true"));
+    }
 }

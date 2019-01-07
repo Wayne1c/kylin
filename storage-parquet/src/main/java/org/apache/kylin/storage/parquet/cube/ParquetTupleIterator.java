@@ -18,19 +18,29 @@
 
 package org.apache.kylin.storage.parquet.cube;
 
+import com.google.common.collect.Maps;
 import org.apache.kylin.cube.CubeInstance;
 import org.apache.kylin.cube.model.CubeDesc;
 import org.apache.kylin.dict.lookup.ILookupTable;
+import org.apache.kylin.measure.MeasureType;
+import org.apache.kylin.measure.bitmap.BitmapMeasureType;
+import org.apache.kylin.measure.hllc.HLLCMeasureType;
+import org.apache.kylin.measure.percentile.PercentileMeasureType;
+import org.apache.kylin.metadata.datatype.DataTypeSerializer;
+import org.apache.kylin.metadata.model.MeasureDesc;
 import org.apache.kylin.metadata.tuple.ITuple;
 import org.apache.kylin.metadata.tuple.ITupleIterator;
 import org.apache.kylin.metadata.tuple.Tuple;
 import org.apache.kylin.metadata.tuple.TupleInfo;
 import org.apache.kylin.storage.StorageContext;
+import org.apache.kylin.storage.parquet.ParquetSchema;
 import org.apache.spark.sql.Row;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 
 public class ParquetTupleIterator implements ITupleIterator {
@@ -40,23 +50,27 @@ public class ParquetTupleIterator implements ITupleIterator {
     private final List<ColumnFiller> fillers;
     private int scanCount;
     private final Tuple tuple;
-    private final int colCount;
+    private final int dimensionCount;
+    private final int measureCount;
+    private final Map<Integer, DataTypeSerializer> serializers;
 
-    public ParquetTupleIterator(CubeInstance cubeInstance, StorageContext context, LookupTableCache lookupCache, ParquetStorageQuery.StorageRequest request, TupleInfo tupleInfo, Iterator<Row> rowIterator) {
+    public ParquetTupleIterator(CubeInstance cubeInstance, StorageContext context, LookupTableCache lookupCache, ParquetSchema schema, TupleInfo tupleInfo, Iterator<Row> rowIterator) {
         this.cubeInstance = cubeInstance;
         this.context = context;
         this.rowIterator = rowIterator;
         this.tuple = new Tuple(tupleInfo);
-        this.colCount = request.groups.size() + request.measures.size();
+        this.dimensionCount = schema.getDimensions().size();
+        this.measureCount = schema.getMeasures().size();
+        this.serializers = getSerializerMap(schema.getMeasures());
 
         this.fillers = new ArrayList<>();
-        fillers.add(new ParquetColumnFiller(request.groups, request.measures, tupleInfo));
+        fillers.add(new ParquetColumnFiller(schema, tupleInfo));
 
         // derived columns fillers
-        List<CubeDesc.DeriveInfo> deriveInfos = cubeInstance.getDescriptor().getDeriveInfos(request.groups);
+        List<CubeDesc.DeriveInfo> deriveInfos = cubeInstance.getDescriptor().getDeriveInfos(schema.getDimensions());
 
         for (CubeDesc.DeriveInfo info : deriveInfos) {
-            DerivedIndexMapping mapping = new DerivedIndexMapping(info, request.groups, tupleInfo);
+            DerivedIndexMapping mapping = new DerivedIndexMapping(info, schema.getDimensions(), tupleInfo);
             if (!mapping.shouldReturnDerived()) {
                 continue;
             }
@@ -72,7 +86,7 @@ public class ParquetTupleIterator implements ITupleIterator {
 
     @Override
     public void close() {
-
+        flushScanCountDelta();
     }
 
     @Override
@@ -98,16 +112,43 @@ public class ParquetTupleIterator implements ITupleIterator {
         return tuple;
     }
 
+    @Override
+    public void remove() {
+        throw new UnsupportedOperationException("remove");
+    }
+
     private void flushScanCountDelta() {
         context.increaseProcessedRowCount(scanCount);
         scanCount = 0;
     }
 
     private Object[] rowToObjects(Row row) {
-        Object[] objects = new Object[colCount];
-        for (int i = 0; i < colCount; i++) {
+        Object[] objects = new Object[dimensionCount + measureCount];
+        for (int i = 0; i < dimensionCount; i++) {
             objects[i] = row.get(i);
         }
+
+        for (int i = dimensionCount; i < dimensionCount + measureCount; i++) {
+            objects[i] = serializers.get(i) == null ? row.get(i) : serializers.get(i).deserialize(ByteBuffer.wrap((byte[])row.get(i)));
+        }
+
         return objects;
+    }
+
+    private Map<Integer, DataTypeSerializer> getSerializerMap(List<MeasureDesc> measures) {
+        Map<Integer, DataTypeSerializer> serializerMap = Maps.newHashMap();
+        int i = dimensionCount;
+        for (MeasureDesc measure : measures) {
+            MeasureType measureType = measure.getFunction().getMeasureType();
+            if (measureType instanceof HLLCMeasureType ||
+                    measureType instanceof BitmapMeasureType ||
+                    measureType instanceof PercentileMeasureType) {
+                serializerMap.put(i, DataTypeSerializer.create(measure.getFunction().getReturnDataType()));
+            }
+
+            i++;
+        }
+
+        return serializerMap;
     }
 }

@@ -63,6 +63,8 @@ import org.apache.kylin.metadata.tuple.ITupleIterator;
 import org.apache.kylin.metadata.tuple.TupleInfo;
 import org.apache.kylin.storage.IStorageQuery;
 import org.apache.kylin.storage.StorageContext;
+import org.apache.kylin.storage.parquet.NameMappingFactory;
+import org.apache.kylin.storage.parquet.ParquetSchema;
 import org.apache.kylin.storage.parquet.spark.ParquetPayload;
 import org.apache.kylin.storage.parquet.steps.ParquetConvertor;
 import org.apache.spark.sql.Column;
@@ -126,7 +128,7 @@ public class ParquetStorageQuery implements IStorageQuery {
             if (parquetFilePaths.isEmpty()) {
                 return ITupleIterator.EMPTY_TUPLE_ITERATOR;
             } else {
-                return new ParquetTupleIterator(cubeInstance, context, lookupCache, request, tupleInfo, queryWithSpark(request, parquetFilePaths.toArray(new String[]{})));
+                return new ParquetTupleIterator(cubeInstance, context, lookupCache, new ParquetSchema(NameMappingFactory.getDefault(this.cubeDesc), request.groups, request.measures), tupleInfo, queryWithSpark(request, parquetFilePaths.toArray(new String[]{})));
             }
 
         } catch (Exception e) {
