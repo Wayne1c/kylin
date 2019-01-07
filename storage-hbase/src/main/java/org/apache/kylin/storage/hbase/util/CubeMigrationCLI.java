@@ -185,11 +185,6 @@ public class CubeMigrationCLI {
     }
 
     private static void renameFoldersInHdfs(CubeInstance cube) {
-<<<<<<< HEAD
-        IStoragePathBuilder srcPathBuilder = (IStoragePathBuilder)ClassUtil.newInstance(srcConfig.getStoragePathBuilder());
-        IStoragePathBuilder dstPathBuilder = (IStoragePathBuilder)ClassUtil.newInstance(dstConfig.getStoragePathBuilder());
-=======
->>>>>>> parent of 126ab092e... KYLIN-3626 Allow customization for storage path
         for (CubeSegment segment : cube.getSegments()) {
 
             String jobUuid = segment.getLastBuildJobID();
