@@ -130,10 +130,6 @@ public class KafkaMRInput extends KafkaInputBase implements IMRInput {
             this.seg = seg;
             this.cubeDesc = seg.getCubeDesc();
             this.cubeName = seg.getCubeInstance().getName();
-<<<<<<< HEAD
-            this.pathBuilder = (IStoragePathBuilder)ClassUtil.newInstance(config.getStoragePathBuilder());
-=======
->>>>>>> parent of 126ab092e... KYLIN-3626 Allow customization for storage path
         }
 
         @Override
