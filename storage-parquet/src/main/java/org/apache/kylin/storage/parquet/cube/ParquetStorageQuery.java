@@ -35,7 +35,6 @@ import java.util.Set;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.kylin.common.util.ClassUtil;
 import org.apache.kylin.common.util.HadoopUtil;
 import org.apache.kylin.cube.CubeInstance;
 import org.apache.kylin.cube.CubeSegment;
@@ -66,7 +65,6 @@ import org.apache.kylin.storage.IStorageQuery;
 import org.apache.kylin.storage.StorageContext;
 import org.apache.kylin.storage.parquet.spark.ParquetPayload;
 import org.apache.kylin.storage.parquet.steps.ParquetConvertor;
-import org.apache.kylin.storage.path.IStoragePathBuilder;
 import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -85,12 +83,10 @@ public class ParquetStorageQuery implements IStorageQuery {
 
     private final CubeInstance cubeInstance;
     private final CubeDesc cubeDesc;
-    private final IStoragePathBuilder storagePathBuilder;
 
     public ParquetStorageQuery(CubeInstance cubeInstance) {
         this.cubeInstance = cubeInstance;
         this.cubeDesc = cubeInstance.getDescriptor();
-        this.storagePathBuilder = (IStoragePathBuilder)ClassUtil.newInstance(cubeInstance.getConfig().getStoragePathBuilder());
     }
 
     @Override
@@ -107,6 +103,8 @@ public class ParquetStorageQuery implements IStorageQuery {
             String prefix = "cuboid_" + request.cuboid.getId() + "_";
 
             for (CubeSegment cubeSeg : segPruner.listSegmentsForQuery(cubeInstance)) {
+                JobBuilderSupport jobBuilderSupport = new JobBuilderSupport(cubeSeg, "");
+
                 List<List<Long>> layeredCuboids = cubeSeg.getCuboidScheduler().getCuboidsByLayer();
                 int level = 0;
                 for (List<Long> levelCuboids : layeredCuboids) {
@@ -115,7 +113,8 @@ public class ParquetStorageQuery implements IStorageQuery {
                     }
                     level++;
                 }
-                String baseFolder = JobBuilderSupport.getCuboidOutputPathsByLevel(storagePathBuilder.getRealizationFinalDataPath(cubeSeg)  + "/", level);
+                String parquetRootPath = jobBuilderSupport.getParquetOutputPath();
+                String baseFolder = JobBuilderSupport.getCuboidOutputPathsByLevel(parquetRootPath, level);
                 Path[] filePaths = HadoopUtil.getFilteredPath(fileSystem, new Path(baseFolder), prefix);
                 for (int i = 0; i < filePaths.length; i++) {
                     parquetFilePaths.add(filePaths[i].toString());
