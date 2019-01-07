@@ -27,7 +27,6 @@ import java.util.regex.Pattern;
 
 import org.apache.kylin.common.KylinConfig;
 import org.apache.kylin.common.StorageURL;
-import org.apache.kylin.common.util.ClassUtil;
 import org.apache.kylin.cube.CubeSegment;
 import org.apache.kylin.cube.cuboid.CuboidModeEnum;
 import org.apache.kylin.cube.model.CubeDesc;
@@ -51,9 +50,6 @@ import org.apache.kylin.job.engine.JobEngineConfig;
 import org.apache.kylin.metadata.model.TblColRef;
 
 import com.google.common.base.Preconditions;
-import org.apache.kylin.storage.path.IStoragePathBuilder;
-
-import static org.apache.kylin.storage.path.IStoragePathBuilder.SLASH;
 
 /**
  * Hold reusable steps for builders.
@@ -63,7 +59,6 @@ public class JobBuilderSupport {
     final protected JobEngineConfig config;
     final protected CubeSegment seg;
     final protected String submitter;
-    final protected IStoragePathBuilder storagePathBuilder;
 
     final public static String LayeredCuboidFolderPrefix = "level_";
 
@@ -77,8 +72,6 @@ public class JobBuilderSupport {
         this.config = new JobEngineConfig(seg.getConfig());
         this.seg = seg;
         this.submitter = submitter;
-        String pathBuilder = seg.getConfig().getStoragePathBuilder();
-        this.storagePathBuilder = (IStoragePathBuilder)ClassUtil.newInstance(pathBuilder);
     }
 
     public MapReduceExecutable createFactDistinctColumnsStep(String jobId) {
@@ -279,11 +272,11 @@ public class JobBuilderSupport {
     // ============================================================================
 
     public String getJobWorkingDir(String jobId) {
-        return storagePathBuilder.getJobWorkingDir(config.getConfig().getHdfsWorkingDirectory(), jobId);
+        return getJobWorkingDir(config, jobId);
     }
 
     public String getRealizationRootPath(String jobId) {
-        return storagePathBuilder.getJobRealizationRootPath(seg, jobId);
+        return getJobWorkingDir(jobId) + "/" + seg.getRealization().getName();
     }
 
     public String getCuboidRootPath(String jobId) {
@@ -318,7 +311,7 @@ public class JobBuilderSupport {
     }
 
     public String getStatisticsPath(String jobId) {
-        return getFactDistinctColumnsPath(jobId) + SLASH + BatchConstants.CFG_OUTPUT_STATISTICS;
+        return getRealizationRootPath(jobId) + "/fact_distinct_columns/" + BatchConstants.CFG_OUTPUT_STATISTICS;
     }
 
     public String getShrunkenDictionaryPath(String jobId) {
@@ -353,23 +346,28 @@ public class JobBuilderSupport {
         return getRealizationRootPath(jobId) + "/counter";
     }
 
+    public String getParquetOutputPath(String jobId) {
+        return getRealizationRootPath(jobId) + "/parquet/";
+    }
+
     public String getParquetOutputPath() {
-        return storagePathBuilder.getRealizationFinalDataPath(seg) + "/";
-    }
-
-    public String getDumpMetadataPath(String jobId) {
-        return getRealizationRootPath(jobId) + "/metadata";
-    }
-
-    public String getSegmentMetadataUrl(KylinConfig kylinConfig, String jobId) {
-        Map<String, String> param = new HashMap<>();
-        param.put("path", getDumpMetadataPath(jobId));
-        return new StorageURL(kylinConfig.getMetadataUrl().getIdentifier(), "hdfs", param).toString();
+        return getParquetOutputPath(seg.getLastBuildJobID());
     }
 
     // ============================================================================
     // static methods also shared by other job flow participant
     // ----------------------------------------------------------------------------
+
+    public static String getJobWorkingDir(JobEngineConfig conf, String jobId) {
+        return getJobWorkingDir(conf.getHdfsWorkingDirectory(), jobId);
+    }
+
+    public static String getJobWorkingDir(String hdfsDir, String jobId) {
+        if (!hdfsDir.endsWith("/")) {
+            hdfsDir = hdfsDir + "/";
+        }
+        return hdfsDir + "kylin-" + jobId;
+    }
 
     public static StringBuilder appendExecCmdParameters(StringBuilder buf, String paraName, String paraValue) {
         return buf.append(" -").append(paraName).append(" ").append(paraValue);
@@ -391,6 +389,10 @@ public class JobBuilderSupport {
         return cuboidRootPath + PathNameCuboidInMem;
     }
 
+    public String getDumpMetadataPath(String jobId) {
+        return getRealizationRootPath(jobId) + "/metadata";
+    }
+
     public static String extractJobIDFromPath(String path) {
         Matcher matcher = JOB_NAME_PATTERN.matcher(path);
         // check the first occurrence
@@ -401,4 +403,9 @@ public class JobBuilderSupport {
         }
     }
 
+    public String getSegmentMetadataUrl(KylinConfig kylinConfig, String jobId) {
+        Map<String, String> param = new HashMap<>();
+        param.put("path", getDumpMetadataPath(jobId));
+        return new StorageURL(kylinConfig.getMetadataUrl().getIdentifier(), "hdfs", param).toString();
+    }
 }

@@ -29,6 +29,7 @@ import org.apache.kylin.common.KylinConfig;
 import org.apache.kylin.common.util.HadoopUtil;
 import org.apache.kylin.common.util.HiveCmdBuilder;
 import org.apache.kylin.cube.model.CubeDesc;
+import org.apache.kylin.engine.mr.JobBuilderSupport;
 import org.apache.kylin.engine.mr.steps.CubingExecutableUtil;
 import org.apache.kylin.job.JoinedFlatTable;
 import org.apache.kylin.job.common.ShellExecutable;
@@ -40,7 +41,6 @@ import org.apache.kylin.metadata.model.DataModelDesc;
 import org.apache.kylin.metadata.model.IJoinedFlatTableDesc;
 import org.apache.kylin.metadata.model.JoinTableDesc;
 import org.apache.kylin.metadata.model.TableDesc;
-import org.apache.kylin.storage.path.IStoragePathBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,11 +58,11 @@ public class HiveInputBase {
         return String.format(Locale.ROOT, "%s.%s", database, tableName).toUpperCase(Locale.ROOT);
     }
 
-    protected void addStepPhase1_DoCreateFlatTable(DefaultChainedExecutable jobFlow, String hdfsWorkingDir, IStoragePathBuilder pathBuilder,
+    protected void addStepPhase1_DoCreateFlatTable(DefaultChainedExecutable jobFlow, String hdfsWorkingDir,
             IJoinedFlatTableDesc flatTableDesc, String flatTableDatabase) {
         final String cubeName = CubingExecutableUtil.getCubeName(jobFlow.getParams());
         final String hiveInitStatements = JoinedFlatTable.generateHiveInitStatements(flatTableDatabase);
-        final String jobWorkingDir = getJobWorkingDir(jobFlow, hdfsWorkingDir, pathBuilder);
+        final String jobWorkingDir = getJobWorkingDir(jobFlow, hdfsWorkingDir);
 
         jobFlow.addTask(createFlatHiveTableStep(hiveInitStatements, jobWorkingDir, cubeName, flatTableDesc));
     }
@@ -142,10 +142,9 @@ public class HiveInputBase {
         return createIntermediateTableHql.toString();
     }
 
-    protected static String getJobWorkingDir(DefaultChainedExecutable jobFlow, String hdfsWorkingDir, IStoragePathBuilder pathBuilder) {
+    protected static String getJobWorkingDir(DefaultChainedExecutable jobFlow, String hdfsWorkingDir) {
 
-        String jobWorkingDir = pathBuilder.getJobWorkingDir(hdfsWorkingDir, jobFlow.getId());
-
+        String jobWorkingDir = JobBuilderSupport.getJobWorkingDir(hdfsWorkingDir, jobFlow.getId());
         if (KylinConfig.getInstanceFromEnv().getHiveTableDirCreateFirst()) {
             // Create work dir to avoid hive create it,
             // the difference is that the owners are different.

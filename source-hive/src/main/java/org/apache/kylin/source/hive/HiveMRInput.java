@@ -29,7 +29,6 @@ import org.apache.hive.hcatalog.data.HCatRecord;
 import org.apache.hive.hcatalog.mapreduce.HCatInputFormat;
 import org.apache.hive.hcatalog.mapreduce.HCatSplit;
 import org.apache.kylin.common.KylinConfig;
-import org.apache.kylin.common.util.ClassUtil;
 import org.apache.kylin.common.util.HadoopUtil;
 import org.apache.kylin.common.util.StringUtil;
 import org.apache.kylin.cube.CubeInstance;
@@ -44,7 +43,6 @@ import org.apache.kylin.job.execution.ExecutableManager;
 import org.apache.kylin.metadata.model.IJoinedFlatTableDesc;
 import org.apache.kylin.metadata.model.ISegment;
 import org.apache.kylin.metadata.model.TableDesc;
-import org.apache.kylin.storage.path.IStoragePathBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -114,11 +112,10 @@ public class HiveMRInput extends HiveInputBase implements IMRInput {
     }
 
     public static class BatchCubingInputSide implements IMRBatchCubingInputSide {
+        final protected IJoinedFlatTableDesc flatDesc;
+        final protected String flatTableDatabase;
+        final protected String hdfsWorkingDir;
 
-        protected final IJoinedFlatTableDesc flatDesc;
-        protected final String flatTableDatabase;
-        protected final String hdfsWorkingDir;
-        protected final IStoragePathBuilder pathBuilder;
 
         List<String> hiveViewIntermediateTables = Lists.newArrayList();
 
@@ -127,7 +124,6 @@ public class HiveMRInput extends HiveInputBase implements IMRInput {
             this.flatDesc = flatDesc;
             this.flatTableDatabase = config.getHiveDatabaseForIntermediateTable();
             this.hdfsWorkingDir = config.getHdfsWorkingDirectory();
-            this.pathBuilder = (IStoragePathBuilder)ClassUtil.newInstance(config.getStoragePathBuilder());
         }
 
         @Override
@@ -154,14 +150,14 @@ public class HiveMRInput extends HiveInputBase implements IMRInput {
         protected void addStepPhase1_DoCreateFlatTable(DefaultChainedExecutable jobFlow) {
             final String cubeName = CubingExecutableUtil.getCubeName(jobFlow.getParams());
             final String hiveInitStatements = JoinedFlatTable.generateHiveInitStatements(flatTableDatabase);
-            final String jobWorkingDir = getJobWorkingDir(jobFlow, hdfsWorkingDir, pathBuilder);
+            final String jobWorkingDir = getJobWorkingDir(jobFlow, hdfsWorkingDir);
 
             jobFlow.addTask(createFlatHiveTableStep(hiveInitStatements, jobWorkingDir, cubeName, flatDesc));
         }
 
         protected void addStepPhase1_DoMaterializeLookupTable(DefaultChainedExecutable jobFlow) {
             final String hiveInitStatements = JoinedFlatTable.generateHiveInitStatements(flatTableDatabase);
-            final String jobWorkingDir = getJobWorkingDir(jobFlow, hdfsWorkingDir, pathBuilder);
+            final String jobWorkingDir = getJobWorkingDir(jobFlow, hdfsWorkingDir);
 
             AbstractExecutable task = createLookupHiveViewMaterializationStep(hiveInitStatements, jobWorkingDir,
                     flatDesc, hiveViewIntermediateTables, jobFlow.getId());
@@ -172,7 +168,7 @@ public class HiveMRInput extends HiveInputBase implements IMRInput {
 
         @Override
         public void addStepPhase4_Cleanup(DefaultChainedExecutable jobFlow) {
-            final String jobWorkingDir = getJobWorkingDir(jobFlow, hdfsWorkingDir, pathBuilder);
+            final String jobWorkingDir = getJobWorkingDir(jobFlow, hdfsWorkingDir);
 
             org.apache.kylin.source.hive.GarbageCollectionStep step = new org.apache.kylin.source.hive.GarbageCollectionStep();
             step.setName(ExecutableConstants.STEP_NAME_HIVE_CLEANUP);

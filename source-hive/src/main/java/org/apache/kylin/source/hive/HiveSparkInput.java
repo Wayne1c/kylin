@@ -22,7 +22,6 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.kylin.common.KylinConfig;
-import org.apache.kylin.common.util.ClassUtil;
 import org.apache.kylin.common.util.StringUtil;
 import org.apache.kylin.cube.CubeInstance;
 import org.apache.kylin.cube.CubeManager;
@@ -34,7 +33,6 @@ import org.apache.kylin.job.execution.AbstractExecutable;
 import org.apache.kylin.job.execution.DefaultChainedExecutable;
 import org.apache.kylin.metadata.model.IJoinedFlatTableDesc;
 import org.apache.kylin.metadata.model.ISegment;
-import org.apache.kylin.storage.path.IStoragePathBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,7 +63,7 @@ public class HiveSparkInput extends HiveInputBase implements ISparkInput {
         final protected IJoinedFlatTableDesc flatDesc;
         final protected String flatTableDatabase;
         final protected String hdfsWorkingDir;
-        final protected IStoragePathBuilder pathBuilder;
+
         List<String> hiveViewIntermediateTables = Lists.newArrayList();
 
         public BatchCubingInputSide(IJoinedFlatTableDesc flatDesc) {
@@ -73,7 +71,6 @@ public class HiveSparkInput extends HiveInputBase implements ISparkInput {
             this.flatDesc = flatDesc;
             this.flatTableDatabase = config.getHiveDatabaseForIntermediateTable();
             this.hdfsWorkingDir = config.getHdfsWorkingDirectory();
-            this.pathBuilder = (IStoragePathBuilder)ClassUtil.newInstance(config.getStoragePathBuilder());
         }
 
         @Override
@@ -84,7 +81,7 @@ public class HiveSparkInput extends HiveInputBase implements ISparkInput {
             final String hiveInitStatements = JoinedFlatTable.generateHiveInitStatements(flatTableDatabase);
 
             // create flat table first
-            addStepPhase1_DoCreateFlatTable(jobFlow, hdfsWorkingDir, pathBuilder, flatDesc, flatTableDatabase);
+            addStepPhase1_DoCreateFlatTable(jobFlow, hdfsWorkingDir, flatDesc, flatTableDatabase);
 
             // then count and redistribute
             if (cubeConfig.isHiveRedistributeEnabled()) {
@@ -98,7 +95,7 @@ public class HiveSparkInput extends HiveInputBase implements ISparkInput {
 
         protected void addStepPhase1_DoMaterializeLookupTable(DefaultChainedExecutable jobFlow) {
             final String hiveInitStatements = JoinedFlatTable.generateHiveInitStatements(flatTableDatabase);
-            final String jobWorkingDir = getJobWorkingDir(jobFlow, hdfsWorkingDir, pathBuilder);
+            final String jobWorkingDir = getJobWorkingDir(jobFlow, hdfsWorkingDir);
 
             AbstractExecutable task = createLookupHiveViewMaterializationStep(hiveInitStatements, jobWorkingDir,
                     flatDesc, hiveViewIntermediateTables, jobFlow.getId());
@@ -109,7 +106,7 @@ public class HiveSparkInput extends HiveInputBase implements ISparkInput {
 
         @Override
         public void addStepPhase4_Cleanup(DefaultChainedExecutable jobFlow) {
-            final String jobWorkingDir = getJobWorkingDir(jobFlow, hdfsWorkingDir, pathBuilder);
+            final String jobWorkingDir = getJobWorkingDir(jobFlow, hdfsWorkingDir);
 
             GarbageCollectionStep step = new GarbageCollectionStep();
             step.setName(ExecutableConstants.STEP_NAME_HIVE_CLEANUP);
