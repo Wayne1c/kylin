@@ -45,15 +45,15 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
     <!-- Hadoop versions -->
-    <hadoop2.version>2.7.1</hadoop2.version>
-    <yarn.version>2.7.1</yarn.version>
+    <hadoop2.version>3.1.0</hadoop2.version>
+    <yarn.version>3.1.0</yarn.version>
 
     <!-- Hive versions -->
-    <hive.version>1.2.1</hive.version>
-    <hive-hcatalog.version>1.2.1</hive-hcatalog.version>
+    <hive.version>3.1.0</hive.version>
+    <hive-hcatalog.version>3.1.0</hive-hcatalog.version>
 
     <!-- HBase versions -->
-    <hbase-hadoop2.version>1.1.1</hbase-hadoop2.version>
+    <hbase-hadoop2.version>2.0.0</hbase-hadoop2.version>
 
     <!-- Kafka versions -->
     <kafka.version>1.0.0</kafka.version>
@@ -76,7 +76,7 @@
 
     <!-- Hadoop Common deps, keep compatible with hadoop2.version -->
     <zookeeper.version>3.4.13</zookeeper.version>
-    <curator.version>2.12.0</curator.version>
+    <curator.version>4.0.0</curator.version>
     <jsr305.version>3.0.1</jsr305.version>
     <guava.version>14.0</guava.version>
     <jsch.version>0.1.54</jsch.version>
@@ -101,7 +101,6 @@
     <jamm.version>0.3.1</jamm.version>
     <mockito.version>2.7.14</mockito.version>
     <powermock.version>1.7.0</powermock.version>
-    <curator.version>2.7.1</curator.version>
 
     <!-- Commons -->
     <commons-lang3.version>3.4</commons-lang3.version>
@@ -1482,14 +1481,14 @@
       </build>
     </profile>
     <profile>
-      <id>cdh5.7</id>
+      <id>cdh6.0</id>
       <properties>
-        <hadoop2.version>2.6.0-cdh5.7.0</hadoop2.version>
-        <yarn.version>2.6.0-cdh5.7.0</yarn.version>
-        <hive.version>1.1.0-cdh5.7.0</hive.version>
-        <hive-hcatalog.version>1.1.0-cdh5.7.0</hive-hcatalog.version>
-        <hbase-hadoop2.version>1.2.0-cdh5.7.0</hbase-hadoop2.version>
-        <zookeeper.version>3.4.5-cdh5.7.0</zookeeper.version>
+        <hadoop2.version>3.0.0-cdh6.0.0</hadoop2.version>
+        <yarn.version>3.0.0-cdh6.0.0</yarn.version>
+        <hive.version>2.1.1-cdh6.0.0</hive.version>
+        <hive-hcatalog.version>2.1.1-cdh6.0.0</hive-hcatalog.version>
+        <hbase-hadoop2.version>2.0.0-cdh6.0.0</hbase-hadoop2.version>
+        <zookeeper.version>3.4.5-cdh6.0.0</zookeeper.version>
       </properties>
       <build>
         <plugins>

@@ -18,23 +18,15 @@
 
 package org.apache.kylin.storage.hbase.cube.v2;
 
-import java.io.IOException;
-import java.lang.reflect.Field;
-import java.nio.BufferOverflowException;
-import java.nio.ByteBuffer;
-import java.util.List;
-import java.util.Locale;
-import java.util.concurrent.ExecutorService;
-import java.util.zip.DataFormatException;
-
+import com.google.common.collect.Lists;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.HBaseZeroCopyByteString;
 import org.apache.commons.lang3.SerializationUtils;
-import org.apache.hadoop.hbase.HRegionLocation;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.client.coprocessor.Batch;
-import org.apache.hadoop.hbase.ipc.BlockingRpcCallback;
-import org.apache.hadoop.hbase.ipc.RegionCoprocessorRpcChannel;
+import org.apache.hadoop.hbase.ipc.CoprocessorRpcUtils;
 import org.apache.hadoop.hbase.ipc.ServerRpcController;
 import org.apache.kylin.common.KylinConfig;
 import org.apache.kylin.common.QueryContext;
@@ -70,9 +62,13 @@ import org.apache.kylin.storage.hbase.cube.v2.coprocessor.endpoint.generated.Cub
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Lists;
-import com.google.protobuf.ByteString;
-import com.google.protobuf.HBaseZeroCopyByteString;
+import java.io.IOException;
+import java.nio.BufferOverflowException;
+import java.nio.ByteBuffer;
+import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.zip.DataFormatException;
 
 public class CubeHBaseEndpointRPC extends CubeHBaseRPC {
 
@@ -117,16 +113,6 @@ public class CubeHBaseEndpointRPC extends CubeHBaseRPC {
         return Pair.newPair(cubeSeg.getCuboidShardNum(cuboid.getId()), cubeSeg.getCuboidBaseShard(cuboid.getId()));
     }
 
-    static Field channelRowField = null;
-    static {
-        try {
-            channelRowField = RegionCoprocessorRpcChannel.class.getDeclaredField("row");
-            channelRowField.setAccessible(true);
-        } catch (Throwable t) {
-            logger.warn("error when get row field from RegionCoprocessorRpcChannel class", t);
-        }
-    }
-
     @SuppressWarnings("checkstyle:methodlength")
     @Override
     public IGTScanner getGTScanner(final GTScanRequest scanRequest) throws IOException {
@@ -159,7 +145,7 @@ public class CubeHBaseEndpointRPC extends CubeHBaseRPC {
         scanRequest.clearScanRanges();//since raw scans are sent to coprocessor, we don't need to duplicate sending it
         scanRequestByteString = serializeGTScanReq(scanRequest);
 
-        final ExpectedSizeIterator epResultItr = new ExpectedSizeIterator(queryContext, shardNum, coprocessorTimeout);
+        final ExpectedSizeIterator epResultItr = new ExpectedSizeIterator(shardNum, coprocessorTimeout);
 
         logger.info("Serialized scanRequestBytes {} bytes, rawScanBytesString {} bytes", scanRequestByteString.size(),
                 rawScanByteString.size());
@@ -272,11 +258,6 @@ public class CubeHBaseEndpointRPC extends CubeHBaseRPC {
                                 return null;
                             }
 
-                            HRegionLocation regionLocation = getStartRegionLocation(rowsService);
-                            String regionServerName = regionLocation == null ? "UNKNOWN" : regionLocation.getHostname();
-                            logger.info("Query-{}: send request to the init region server {} on table {} ", queryId,
-                                    regionServerName, table.getName());
-
                             queryContext.addQueryStopListener(new QueryContext.QueryStopListener() {
                                 private Thread hConnThread = Thread.currentThread();
 
@@ -292,7 +273,7 @@ public class CubeHBaseEndpointRPC extends CubeHBaseRPC {
                             });
 
                             ServerRpcController controller = new ServerRpcController();
-                            BlockingRpcCallback<CubeVisitResponse> rpcCallback = new BlockingRpcCallback<>();
+                            CoprocessorRpcUtils.BlockingRpcCallback<CubeVisitResponse> rpcCallback = new CoprocessorRpcUtils.BlockingRpcCallback<>();
                             try {
                                 rowsService.visitCube(controller, request, rpcCallback);
                                 CubeVisitResponse response = rpcCallback.get();
@@ -306,19 +287,6 @@ public class CubeHBaseEndpointRPC extends CubeHBaseRPC {
                                 // Reset the interrupted state
                                 Thread.interrupted();
                             }
-                        }
-
-                        private HRegionLocation getStartRegionLocation(CubeVisitProtos.CubeVisitService rowsService) {
-                            try {
-                                CubeVisitProtos.CubeVisitService.Stub rowsServiceStub = (CubeVisitProtos.CubeVisitService.Stub) rowsService;
-                                RegionCoprocessorRpcChannel channel = (RegionCoprocessorRpcChannel) rowsServiceStub
-                                        .getChannel();
-                                byte[] row = (byte[]) channelRowField.get(channel);
-                                return conn.getRegionLocator(table.getName()).getRegionLocation(row, false);
-                            } catch (Throwable throwable) {
-                                logger.warn("error when get region server name", throwable);
-                            }
-                            return null;
                         }
                     }, new Batch.Callback<CubeVisitResponse>() {
                         @Override
