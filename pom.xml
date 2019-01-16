@@ -68,6 +68,8 @@
     <!-- Scala versions -->
     <scala.version>2.11.0</scala.version>
 
+    <commons-configuration.version>1.10</commons-configuration.version>
+
     <!-- <reflections.version>0.9.10</reflections.version> -->
 
     <!-- Calcite Version, the kylin fork is: https://github.com/Kyligence/calcite -->
@@ -563,7 +565,17 @@
       </dependency>
       <dependency>
         <groupId>org.apache.hbase</groupId>
+        <artifactId>hbase-mapreduce</artifactId>
+        <version>${hbase-hadoop2.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hbase</groupId>
         <artifactId>hbase-client</artifactId>
+        <version>${hbase-hadoop2.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hbase</groupId>
+        <artifactId>hbase-zookeeper</artifactId>
         <version>${hbase-hadoop2.version}</version>
       </dependency>
       <dependency>
@@ -607,7 +619,11 @@
         <artifactId>hadoop-yarn-server-resourcemanager</artifactId>
         <version>${yarn.version}</version>
       </dependency>
-
+      <dependency>
+        <groupId>commons-configuration</groupId>
+        <artifactId>commons-configuration</artifactId>
+        <version>${commons-configuration.version}</version>
+      </dependency>
       <!-- Calcite dependencies -->
       <dependency>
         <groupId>org.apache.calcite</groupId>
@@ -937,6 +953,12 @@
       <dependency>
         <groupId>org.eclipse.jetty</groupId>
         <artifactId>jetty-webapp</artifactId>
+        <version>${jetty.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.eclipse.jetty</groupId>
+        <artifactId>jetty-util</artifactId>
         <version>${jetty.version}</version>
         <scope>test</scope>
       </dependency>

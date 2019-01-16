@@ -18,10 +18,18 @@
 
 package org.apache.kylin.storage.hbase.cube.v2;
 
+import java.io.IOException;
+import java.nio.BufferOverflowException;
+import java.nio.ByteBuffer;
+import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.zip.DataFormatException;
+
+import org.apache.commons.lang3.SerializationUtils;
 import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.HBaseZeroCopyByteString;
-import org.apache.commons.lang3.SerializationUtils;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.Table;
@@ -61,14 +69,6 @@ import org.apache.kylin.storage.hbase.cube.v2.coprocessor.endpoint.generated.Cub
 import org.apache.kylin.storage.hbase.cube.v2.coprocessor.endpoint.generated.CubeVisitProtos.CubeVisitService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.nio.BufferOverflowException;
-import java.nio.ByteBuffer;
-import java.util.List;
-import java.util.Locale;
-import java.util.concurrent.ExecutorService;
-import java.util.zip.DataFormatException;
 
 public class CubeHBaseEndpointRPC extends CubeHBaseRPC {
 
@@ -257,6 +257,8 @@ public class CubeHBaseEndpointRPC extends CubeHBaseRPC {
                                         queryId);
                                 return null;
                             }
+
+                            logger.info("Query-{}: send request to the init region server on table {} ", queryId, table.getName());
 
                             queryContext.addQueryStopListener(new QueryContext.QueryStopListener() {
                                 private Thread hConnThread = Thread.currentThread();
