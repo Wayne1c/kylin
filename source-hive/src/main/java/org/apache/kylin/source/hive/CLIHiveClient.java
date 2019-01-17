@@ -19,12 +19,13 @@
 package org.apache.kylin.source.hive;
 
 import com.google.common.collect.Lists;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.common.StatsSetupConst;
-import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.kylin.common.KylinConfig;
+import org.apache.kylin.common.util.HadoopUtil;
 import org.apache.kylin.common.util.HiveCmdBuilder;
 import org.apache.kylin.common.util.Pair;
 
@@ -38,11 +39,11 @@ import java.util.Map;
  *
  */
 public class CLIHiveClient implements IHiveClient {
-    protected HiveConf hiveConf = null;
+    protected Configuration conf = null;
     protected HiveMetaStoreClient metaStoreClient = null;
 
     public CLIHiveClient() {
-        hiveConf = new HiveConf(CLIHiveClient.class);
+        conf = HadoopUtil.getCurrentConfiguration();
     }
 
     /**
@@ -129,7 +130,7 @@ public class CLIHiveClient implements IHiveClient {
 
     private HiveMetaStoreClient getMetaStoreClient() throws Exception {
         if (metaStoreClient == null) {
-            metaStoreClient = new HiveMetaStoreClient(hiveConf);
+            metaStoreClient = new HiveMetaStoreClient(conf);
         }
         return metaStoreClient;
     }
