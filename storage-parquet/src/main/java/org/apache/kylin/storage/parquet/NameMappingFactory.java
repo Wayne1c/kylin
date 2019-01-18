@@ -60,8 +60,8 @@ public class NameMappingFactory {
     }
 
     private static class CachedNameMapping implements NameMapping {
-        static final String DIM_PREFIX = "D_";
-        static final String MEASURE_PREFIX = "M_";
+        static final String DIM_PREFIX = "";
+        static final String MEASURE_PREFIX = "";
 
         final Map<TblColRef, String> dimNameCache = new HashMap<>();
         final Map<String, String> metNameCache = new HashMap<>();
@@ -106,7 +106,7 @@ public class NameMappingFactory {
         }
 
         private String removeDotFromName(String name) {
-            return name.replace(".", "-");
+            return name.replace(".", "_");
         }
     }
 }

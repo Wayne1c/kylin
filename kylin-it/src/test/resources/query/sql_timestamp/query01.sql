@@ -17,8 +17,8 @@
 --
 
 SELECT test_kylin_fact.cal_dt,cast(timestampdiff(DAY,date'2013-01-01',test_kylin_fact.cal_dt) as integer) as x,sum(price) as y
- FROM TEST_KYLIN_FACT 
- 
+ FROM TEST_KYLIN_FACT
+
 inner JOIN edw.test_cal_dt as test_cal_dt
  ON test_kylin_fact.cal_dt = test_cal_dt.cal_dt
  inner JOIN test_category_groupings

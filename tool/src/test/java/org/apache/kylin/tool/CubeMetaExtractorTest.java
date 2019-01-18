@@ -64,7 +64,7 @@ public class CubeMetaExtractorTest extends LocalFileMetadataTestCase {
         args.add("-project");
         args.add("default");
         args.add("-compress");
-        args.add("false");
+        args.add("true");
         args.add("-packagetype");
         args.add("cubemeta");
         String[] cubeMetaArgs = new String[args.size()];

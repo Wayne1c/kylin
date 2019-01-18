@@ -145,6 +145,11 @@ public class ConstantTupleFilter extends TupleFilter {
         return result;
     }
 
+    @Override
+    public boolean canPushDown() {
+        return true;
+    }
+
     @Override public boolean equals(Object o) {
         if (this == o)
             return true;

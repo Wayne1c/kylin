@@ -21,8 +21,9 @@ package org.apache.kylin.storage.parquet.cube;
 import com.google.common.collect.Lists;
 import org.apache.kylin.common.util.TimeUtil;
 import org.apache.kylin.cube.model.CubeDesc;
-import org.apache.kylin.dict.lookup.LookupStringTable;
+import org.apache.kylin.dict.lookup.ILookupTable;
 import org.apache.kylin.metadata.filter.BuiltInFunctionTupleFilter;
+import org.apache.kylin.metadata.filter.CaseTupleFilter;
 import org.apache.kylin.metadata.filter.ColumnTupleFilter;
 import org.apache.kylin.metadata.filter.CompareTupleFilter;
 import org.apache.kylin.metadata.filter.ConstantTupleFilter;
@@ -47,10 +48,12 @@ import java.util.Set;
 public class TranslateDerivedVisitor implements TupleFilterVisitor2<TupleFilter> {
     private final CubeDesc desc;
     private final LookupTableCache lookupCache;
+    private final Set<TblColRef> unevaluatableColumnCollector;
 
-    public TranslateDerivedVisitor(CubeDesc desc, LookupTableCache lookupCache) {
+    public TranslateDerivedVisitor(CubeDesc desc, LookupTableCache lookupCache, Set<TblColRef> unevaluatableColumnCollector) {
         this.desc = desc;
         this.lookupCache = lookupCache;
+        this.unevaluatableColumnCollector = unevaluatableColumnCollector;
     }
 
     private void checkNotFilteringOnExtendedColumn(TblColRef column) {
@@ -69,10 +72,9 @@ public class TranslateDerivedVisitor implements TupleFilterVisitor2<TupleFilter>
         }
 
         List<String[]> result = new ArrayList<>();
-        //FixMe currently we only support LookupStringTable
-        LookupStringTable lookup = (LookupStringTable) lookupCache.get(hostInfo.join);
+        ILookupTable lookup = lookupCache.get(hostInfo.join);
 
-        for (String[] row : lookup.getAllRows()) {
+        for (String[] row : lookup) {
             if (matcher.match(row[derivedIndex])) {
                 String[] hostValues = new String[pkIndices.length];
                 for (int i = 0; i < pkIndices.length; i++) {
@@ -140,6 +142,19 @@ public class TranslateDerivedVisitor implements TupleFilterVisitor2<TupleFilter>
 
         // translate to host column filter
         return newHostColumnFilter(hostCols, hostRecords);
+    }
+
+    @Override
+    public TupleFilter visitCaseCompare(CompareTupleFilter originFilter, TupleFilter.FilterOperatorEnum op, Set<?> values, Object firstValue, TupleFilterVisitor2Adaptor<TupleFilter> adaptor) {
+        CaseTupleFilter caseFilter = (CaseTupleFilter)originFilter.getChildren().get(0);
+        TupleFilter first = visitCase(caseFilter, caseFilter.getChildren(), caseFilter.getWhenFilters(), caseFilter.getThenFilters(), adaptor);
+        ConstantTupleFilter second = new ConstantTupleFilter(values);
+
+        CompareTupleFilter compareFilter = new CompareTupleFilter(op);
+        compareFilter.addChild(first);
+        compareFilter.addChild(second);
+
+        return compareFilter;
     }
 
     @Override
@@ -215,7 +230,7 @@ public class TranslateDerivedVisitor implements TupleFilterVisitor2<TupleFilter>
 
     private Object invokeFunction(BuiltInFunctionTupleFilter function, String value) {
         // special case for extract(timeUnit from derived)
-        if ("EXTRACT_DATE".equals(function.getName())) {
+        if ("EXTRACT".equals(function.getName())) {
             if (value == null) {
                 return null;
             }
@@ -262,13 +277,37 @@ public class TranslateDerivedVisitor implements TupleFilterVisitor2<TupleFilter>
     }
 
     @Override
+    public TupleFilter visitCase(CaseTupleFilter originFilter, List<? extends TupleFilter> children, List<? extends TupleFilter> whenFilter, List<? extends TupleFilter> thenFilter, TupleFilterVisitor2Adaptor<TupleFilter> adaptor) {
+        List<TupleFilter> newChildren = Lists.newArrayList();
+        for (TupleFilter child : children) {
+            TupleFilter newChild = child.accept(adaptor);
+            newChildren.add(newChild);
+        }
+        CaseTupleFilter caseFilter = new CaseTupleFilter();
+        caseFilter.addChildren(newChildren);
+        return caseFilter;
+    }
+
+    @Override
+    public TupleFilter visitColumn(ColumnTupleFilter originFilter, TblColRef column) {
+        return originFilter;
+    }
+
+    @Override
+    public TupleFilter visitSecondColumnCompare(CompareTupleFilter originFilter) {
+        unevaluatableColumnCollector.add(originFilter.getColumn());
+        return ConstantTupleFilter.TRUE;
+    }
+
+    @Override
     public TupleFilter visitConstant(ConstantTupleFilter originFilter) {
         return originFilter;
     }
 
     @Override
     public TupleFilter visitUnsupported(TupleFilter originFilter) {
-        throw new UnsupportedFilterException(originFilter.toString());
+        TupleFilter.collectColumns(originFilter, unevaluatableColumnCollector);
+        return ConstantTupleFilter.TRUE;
     }
 
     interface DerivedColumnMatcher {

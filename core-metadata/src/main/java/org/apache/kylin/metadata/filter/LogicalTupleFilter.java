@@ -180,6 +180,11 @@ public class LogicalTupleFilter extends TupleFilter implements IOptimizeableTupl
     }
 
     @Override
+    public boolean canPushDown() {
+        return true;
+    }
+
+    @Override
     public TupleFilter acceptOptimizeTransformer(FilterOptimizeTransformer transformer) {
         List<TupleFilter> newChildren = Lists.newArrayList();
         for (TupleFilter child : this.getChildren()) {

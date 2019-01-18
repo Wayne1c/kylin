@@ -425,4 +425,19 @@ public abstract class TupleFilter {
 
     public abstract String toSQL();
 
+    public abstract boolean canPushDown();
+
+    public static boolean canPushDownRecursively(TupleFilter filter) {
+        if (filter == null)
+            return true;
+
+        if (!filter.canPushDown())
+            return false;
+
+        for (TupleFilter child : filter.getChildren()) {
+            if (!canPushDownRecursively(child))
+                return false;
+        }
+        return true;
+    }
 }

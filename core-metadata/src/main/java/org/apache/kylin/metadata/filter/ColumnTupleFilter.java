@@ -168,6 +168,11 @@ public class ColumnTupleFilter extends TupleFilter {
     }
 
     @Override
+    public boolean canPushDown() {
+        return true;
+    }
+
+    @Override
     public <R> R accept(TupleFilterVisitor<R> visitor) {
         return visitor.visitColumn(this);
     }

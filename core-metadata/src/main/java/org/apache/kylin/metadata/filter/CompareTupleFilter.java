@@ -126,6 +126,10 @@ public class CompareTupleFilter extends TupleFilter implements IOptimizeableTupl
         return column;
     }
 
+    public TblColRef getSecondColumn() {
+        return secondColumn;
+    }
+
     public FunctionTupleFilter getFunction() {
         return function;
     }
@@ -306,6 +310,13 @@ public class CompareTupleFilter extends TupleFilter implements IOptimizeableTupl
             default:
                 throw new IllegalStateException("operator " + this.getOperator() + " not supported: ");
         }
+    }
+
+    @Override
+    public boolean canPushDown() {
+        return ((column != null || (function != null && function.canPushDown()))
+                && (!conditionValues.isEmpty() || !dynamicVariables.isEmpty() || operator == FilterOperatorEnum.ISNOTNULL || operator == FilterOperatorEnum.ISNULL)
+                && (secondColumn == null || !secondColumn.isInnerColumn()));
     }
 
     @Override

@@ -151,7 +151,8 @@ public class OLAPFilterRel extends Filter implements OLAPRel {
     @Override
     public EnumerableRel implementEnumerable(List<EnumerableRel> inputs) {
         EnumerableRel input = sole(inputs);
-        final boolean overCube = !afterAggregate && context.realization != null &&  context.realization.getModel().isFactTable(context.firstTableScan.getTableName());
+        final boolean canPushDown = TupleFilter.canPushDownRecursively(context.filter);
+        final boolean overCube = !afterAggregate && context.realization != null && context.realization.getModel().isFactTable(context.firstTableScan.getTableName()) && canPushDown;
         if (overCube) {
             IStorageQuery storageQuery = StorageFactory.createQuery(context.realization);
             if (!storageQuery.keepRuntimeFilter()) {

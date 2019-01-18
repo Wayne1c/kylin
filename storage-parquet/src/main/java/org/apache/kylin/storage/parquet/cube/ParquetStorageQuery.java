@@ -20,6 +20,7 @@ package org.apache.kylin.storage.parquet.cube;
 
 import static org.apache.spark.sql.functions.callUDF;
 import static org.apache.spark.sql.functions.col;
+import static org.apache.spark.sql.functions.count;
 import static org.apache.spark.sql.functions.max;
 import static org.apache.spark.sql.functions.min;
 import static org.apache.spark.sql.functions.sum;
@@ -63,10 +64,9 @@ import org.apache.kylin.metadata.tuple.ITupleIterator;
 import org.apache.kylin.metadata.tuple.TupleInfo;
 import org.apache.kylin.storage.IStorageQuery;
 import org.apache.kylin.storage.StorageContext;
+import org.apache.kylin.storage.parquet.NameMapping;
 import org.apache.kylin.storage.parquet.NameMappingFactory;
 import org.apache.kylin.storage.parquet.ParquetSchema;
-import org.apache.kylin.storage.parquet.spark.ParquetPayload;
-import org.apache.kylin.storage.parquet.steps.ParquetConvertor;
 import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -85,10 +85,12 @@ public class ParquetStorageQuery implements IStorageQuery {
 
     private final CubeInstance cubeInstance;
     private final CubeDesc cubeDesc;
+    private final NameMapping nameMapping;
 
     public ParquetStorageQuery(CubeInstance cubeInstance) {
         this.cubeInstance = cubeInstance;
         this.cubeDesc = cubeInstance.getDescriptor();
+        this.nameMapping = NameMappingFactory.getDefault(cubeDesc);
     }
 
     @Override
@@ -97,7 +99,7 @@ public class ParquetStorageQuery implements IStorageQuery {
             context.setStorageQuery(this);
             final LookupTableCache lookupCache = new LookupTableCache(cubeInstance);
             final StorageRequest request = planRequest(context, sqlDigest, tupleInfo, lookupCache);
-            ParquetPayload.ParquetPayloadBuilder builder = new ParquetPayload.ParquetPayloadBuilder();
+
             SegmentPruner segPruner = new SegmentPruner(sqlDigest.filter);
             List<String> parquetFilePaths = Lists.newArrayList();
             FileSystem fileSystem = HadoopUtil.getWorkingFileSystem();
@@ -128,12 +130,51 @@ public class ParquetStorageQuery implements IStorageQuery {
             if (parquetFilePaths.isEmpty()) {
                 return ITupleIterator.EMPTY_TUPLE_ITERATOR;
             } else {
-                return new ParquetTupleIterator(cubeInstance, context, lookupCache, new ParquetSchema(NameMappingFactory.getDefault(this.cubeDesc), request.groups, request.measures), tupleInfo, queryWithSpark(request, parquetFilePaths.toArray(new String[]{})));
+                return new ParquetTupleIterator(cubeInstance, context, lookupCache, new ParquetSchema(nameMapping, request.groups, request.measures), tupleInfo, queryWithSpark(request, parquetFilePaths.toArray(new String[]{})));
             }
 
         } catch (Exception e) {
             throw new IllegalStateException("Query failed.", e);
         }
+    }
+
+    protected StorageRequest planRequest(StorageContext context, SQLDigest sqlDigest, TupleInfo returnTupleInfo, LookupTableCache lookupCache) {
+        //deal with participant columns in subquery join
+        sqlDigest.includeSubqueryJoinParticipants();
+
+        //cope with queries with no aggregations
+        RawQueryLastHacker.hackNoAggregations(sqlDigest, cubeDesc, returnTupleInfo);
+
+        // Customized measure taking effect: e.g. allow custom measures to help raw queries
+        notifyBeforeStorageQuery(sqlDigest);
+
+        TupleFilter filter = sqlDigest.filter;
+        List<MeasureDesc> measures = findMeasures(sqlDigest);
+
+        // expand derived (xxxD means contains host columns only, derived columns were translated)
+        Set<TblColRef> groupsD = translateDerivedToHost(sqlDigest.groupbyColumns);
+        Set<TblColRef> filterD = Sets.newHashSet();
+        Set<TblColRef> unevaluatableColumnCollector = Sets.newHashSet();
+        if (filter != null) {
+            TupleFilterVisitor2<TupleFilter> translateDerivedVisitor = new TranslateDerivedVisitor(cubeDesc, lookupCache, unevaluatableColumnCollector);
+            filter = filter.accept(new TupleFilterVisitor2Adaptor<>(translateDerivedVisitor));
+            groupsD.addAll(unevaluatableColumnCollector);
+            TupleFilter.collectColumns(filter, filterD);
+        }
+
+        // identify cuboid
+        Set<TblColRef> dimensionsD = Sets.newLinkedHashSet();
+        dimensionsD.addAll(groupsD);
+        dimensionsD.addAll(filterD);
+        Cuboid cuboid = Cuboid.findCuboid(cubeInstance.getCuboidScheduler(), dimensionsD, toFunctions(measures));
+        context.setCuboid(cuboid);
+
+        // determine whether push down aggregation to storage is beneficial
+        Set<TblColRef> singleValuesD = findSingleValueColumns(filter);
+        context.setNeedStorageAggregation(needStorageAggregation(cuboid, groupsD, singleValuesD));
+
+        logger.info("Cuboid identified: cube={}, cuboidId={}, groupsD={}, filterD={}, limitPushdown={}, storageAggr={}", cubeInstance.getName(), cuboid.getId(), groupsD, filterD, context.getFinalPushDownLimit(), context.isNeedStorageAggregation());
+        return new StorageRequest(cuboid, Lists.newArrayList(dimensionsD), Lists.newArrayList(groupsD), measures, filter);
     }
 
     @Override
@@ -150,10 +191,10 @@ public class ParquetStorageQuery implements IStorageQuery {
         List<MeasureDesc> measures = request.measures;
         List<TblColRef> groupBy = request.groups;
 
-        // where
-        String where = request.filter;
-        if (where != null) {
-            dataset = dataset.filter(where);
+        // filter
+        if (request.filter != null) {
+            Column filter = getFilterColumn(request);
+            dataset = dataset.filter(filter);
         }
 
         //groupby agg
@@ -162,20 +203,27 @@ public class ParquetStorageQuery implements IStorageQuery {
         if (aggCols.length >= 1) {
             tailCols = new Column[aggCols.length - 1];
             System.arraycopy(aggCols, 1, tailCols, 0, tailCols.length);
-            dataset = dataset.groupBy(getColumns(groupBy)).agg(aggCols[0], tailCols);
+            dataset = dataset.groupBy(getDimColumns(groupBy)).agg(aggCols[0], tailCols);
         }
 
         // select
         Column[] selectColumn = getSelectColumns(groupBy, measures);
         dataset = dataset.select(selectColumn);
 
-        return dataset.collectAsList().iterator();
+        List<Row> list = dataset.collectAsList();
+        return list.iterator();
     }
 
-    private Column[] getColumns(List<TblColRef> colRefs) {
+    private Column getFilterColumn(StorageRequest request) {
+        ToSparkFilterVisitor sparkFilterVistor = new ToSparkFilterVisitor(this.nameMapping, request.dimensions);
+        Column column = request.filter.accept(new TupleFilterVisitor2Adaptor<>(sparkFilterVistor));
+        return column;
+    }
+
+    private Column[] getDimColumns(List<TblColRef> colRefs) {
         Column[] columns = new Column[colRefs.size()];
         for (int i = 0; i < colRefs.size(); i++) {
-            columns[i] = col(ParquetConvertor.getColName(colRefs.get(i)));
+            columns[i] = col(nameMapping.getDimFieldName(colRefs.get(i)));
         }
         return columns;
     }
@@ -183,13 +231,13 @@ public class ParquetStorageQuery implements IStorageQuery {
     private Column[] getMeaColumns(List<MeasureDesc> measures) {
         Column[] columns = new Column[measures.size()];
         for (int i = 0; i < measures.size(); i++) {
-            columns[i] = col(measures.get(i).getName());
+            columns[i] = col(nameMapping.getMeasureFieldName(measures.get(i)));
         }
         return columns;
     }
 
     private Column[] getSelectColumns(List<TblColRef> colRefs, List<MeasureDesc> measures) {
-        Column[] dims = getColumns(colRefs);
+        Column[] dims = getDimColumns(colRefs);
         Column[] meas = getMeaColumns(measures);
 
         return ArrayUtils.addAll(dims, meas);
@@ -199,7 +247,7 @@ public class ParquetStorageQuery implements IStorageQuery {
         Column[] columns = new Column[measures.size()];
         for (int i = 0; i < measures.size(); i++) {
             MeasureDesc measure = measures.get(i);
-            columns[i] = getAggColumn(measure.getName(), measure.getFunction().getExpression(), measure.getFunction().getReturnDataType());
+            columns[i] = getAggColumn(nameMapping.getMeasureFieldName(measure), measure.getFunction().getExpression(), measure.getFunction().getReturnDataType());
         }
         return columns;
     }
@@ -232,49 +280,6 @@ public class ParquetStorageQuery implements IStorageQuery {
 
         }
         return column.alias(meaName);
-    }
-
-    protected StorageRequest planRequest(StorageContext context, SQLDigest sqlDigest, TupleInfo returnTupleInfo, LookupTableCache lookupCache) {
-        //deal with participant columns in subquery join
-        sqlDigest.includeSubqueryJoinParticipants();
-
-        //cope with queries with no aggregations
-        RawQueryLastHacker.hackNoAggregations(sqlDigest, cubeDesc, returnTupleInfo);
-
-        // Customized measure taking effect: e.g. allow custom measures to help raw queries
-        notifyBeforeStorageQuery(sqlDigest);
-
-        TupleFilter filter = sqlDigest.filter;
-        List<MeasureDesc> measures = findMeasures(sqlDigest);
-
-        // expand derived (xxxD means contains host columns only, derived columns were translated)
-        Set<TblColRef> groupsD = translateDerivedToHost(sqlDigest.groupbyColumns);
-        Set<TblColRef> filterD = Sets.newHashSet();
-        if (filter != null) {
-            TupleFilterVisitor2<TupleFilter> translateDerivedVisitor = new TranslateDerivedVisitor(cubeDesc, lookupCache);
-            filter = filter.accept(new TupleFilterVisitor2Adaptor<>(translateDerivedVisitor));
-            TupleFilter.collectColumns(filter, filterD);
-        }
-
-        String filterSql = null;
-
-        if (filter != null) {
-            filterSql = filter.toSQL();
-        }
-
-        // identify cuboid
-        Set<TblColRef> dimensionsD = Sets.newLinkedHashSet();
-        dimensionsD.addAll(groupsD);
-        dimensionsD.addAll(filterD);
-        Cuboid cuboid = Cuboid.findCuboid(cubeInstance.getCuboidScheduler(), dimensionsD, toFunctions(measures));
-        context.setCuboid(cuboid);
-
-        // determine whether push down aggregation to storage is beneficial
-        Set<TblColRef> singleValuesD = findSingleValueColumns(filter);
-        context.setNeedStorageAggregation(needStorageAggregation(cuboid, groupsD, singleValuesD));
-
-        logger.info("Cuboid identified: cube={}, cuboidId={}, groupsD={}, filterD={}, limitPushdown={}, storageAggr={}", cubeInstance.getName(), cuboid.getId(), groupsD, filterD, context.getFinalPushDownLimit(), context.isNeedStorageAggregation());
-        return new StorageRequest(cuboid, Lists.newArrayList(dimensionsD), Lists.newArrayList(groupsD), measures, filterSql);
     }
 
     private void notifyBeforeStorageQuery(SQLDigest sqlDigest) {
@@ -362,9 +367,9 @@ public class ParquetStorageQuery implements IStorageQuery {
         final List<TblColRef> dimensions;
         final List<TblColRef> groups;
         final List<MeasureDesc> measures;
-        final String filter;
+        final TupleFilter filter;
 
-        public StorageRequest(Cuboid cuboid, List<TblColRef> dimensions, List<TblColRef> groups, List<MeasureDesc> measures, String filter) {
+        public StorageRequest(Cuboid cuboid, List<TblColRef> dimensions, List<TblColRef> groups, List<MeasureDesc> measures, TupleFilter filter) {
             this.cuboid = cuboid;
             this.dimensions = dimensions;
             this.groups = groups;

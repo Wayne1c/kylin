@@ -63,6 +63,11 @@ public class UnsupportedTupleFilter extends TupleFilter {
     }
 
     @Override
+    public boolean canPushDown() {
+        return false;
+    }
+
+    @Override
     public <R> R accept(TupleFilterVisitor<R> visitor) {
         return visitor.visitUnsupported(this);
     }

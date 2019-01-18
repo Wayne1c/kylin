@@ -13,13 +13,12 @@ public class TupleFilterVisitor2Adaptor<R> implements TupleFilterVisitor<R> {
 
     @Override
     public R visitCase(CaseTupleFilter filter) {
-        throw new UnsupportedOperationException("visitCase");
+        return visitor.visitCase(filter, filter.getChildren(), filter.getWhenFilters(), filter.getThenFilters(), this);
     }
 
     @Override
     public R visitColumn(ColumnTupleFilter filter) {
-        // leaf node like column should never be visited
-        throw new UnsupportedOperationException("visitColumn");
+        return visitor.visitColumn(filter, filter.getColumn());
     }
 
     @Override
@@ -28,7 +27,9 @@ public class TupleFilterVisitor2Adaptor<R> implements TupleFilterVisitor<R> {
         FunctionTupleFilter function = filter.getFunction();
         Set<?> values = filter.getValues();
 
-        // TODO consider case when filter.secondColumn != null
+        if (filter.getSecondColumn() != null && filter.getSecondColumn().isInnerColumn()) {
+            return visitor.visitSecondColumnCompare(filter);
+        }
 
         if (col != null && (!values.isEmpty() || filter.getOperator() == TupleFilter.FilterOperatorEnum.ISNOTNULL || filter.getOperator() == TupleFilter.FilterOperatorEnum.ISNULL)) {
             return visitor.visitColumnCompare(filter, col, filter.operator, values, filter.getFirstValue());
@@ -41,16 +42,17 @@ public class TupleFilterVisitor2Adaptor<R> implements TupleFilterVisitor<R> {
             }
         }
 
+        if (filter.getChildren().get(0) instanceof CaseTupleFilter) {
+            return visitor.visitCaseCompare(filter, filter.operator, values, filter.getFirstValue(), this);
+        }
+
         // TODO consider MassInTupleFilter?
         return visitor.visitUnsupported(filter);
     }
 
     @Override
     public R visitConstant(ConstantTupleFilter filter) {
-        if (filter == ConstantTupleFilter.TRUE || filter == ConstantTupleFilter.FALSE) {
-            return visitor.visitConstant(filter);
-        }
-        throw new AssertionError("visitConstant"); // should never traverse a non-root constant filter
+        return visitor.visitConstant(filter);
     }
 
     @Override

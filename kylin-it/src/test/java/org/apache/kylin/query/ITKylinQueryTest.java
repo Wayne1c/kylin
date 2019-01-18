@@ -364,7 +364,7 @@ public class ITKylinQueryTest extends KylinTestBase {
 
     @Test
     public void testDynamicQuery() throws Exception {
-        execAndCompDynamicQuery(getQueryFolderPrefix() + "src/test/resources/query/sql_dynamic", null, true);
+        execAndCompDynamicQuery(getQueryFolderPrefix() + "src/test/resources/query/sql_dynamic", new String[]{"query01", "query02"}, true);
     }
 
     @Test
@@ -379,7 +379,7 @@ public class ITKylinQueryTest extends KylinTestBase {
 
     @Test
     public void testLimitCorrectness() throws Exception {
-        this.execLimitAndValidate(getQueryFolderPrefix() + "src/test/resources/query/sql");
+        this.execLimitAndValidate(getQueryFolderPrefix() + "src/test/resources/query/sql", null);
     }
 
     @Test

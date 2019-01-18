@@ -28,33 +28,35 @@ public class DerivedIndexMapping {
     private final int[] tupleIndex;
     private final int[] lookupIndex;
     private final int[] hostIndex;
+    private boolean shouldReturnDerived = true;
 
-    public DerivedIndexMapping(CubeDesc.DeriveInfo info, List<TblColRef> dimensions, TupleInfo tupleInfo) {
+    public DerivedIndexMapping(CubeDesc.DeriveInfo info, List<TblColRef> dimensions, TupleInfo tupleInfo, TblColRef[] hostCols) {
         TblColRef[] derivedCols = info.columns;
-        TblColRef[] hostCols = info.join.getForeignKeyColumns();
 
         this.tupleIndex = new int[derivedCols.length];
         this.lookupIndex = new int[derivedCols.length];
         this.hostIndex = new int[hostCols.length];
 
+        boolean allHostsPresent = true;
+        for (int i = 0; i < hostCols.length; i++) {
+            hostIndex[i] = dimensions.indexOf(hostCols[i]);
+            allHostsPresent = allHostsPresent && hostIndex[i] >= 0;
+        }
+
+        boolean needCopyDerived = false;
         for (int i = 0; i < derivedCols.length; i++) {
             TblColRef col = derivedCols[i];
             tupleIndex[i] = tupleInfo.hasColumn(col) ? tupleInfo.getColumnIndex(col) : -1;
+            needCopyDerived = needCopyDerived || tupleIndex[i] >= 0;
             lookupIndex[i] = col.getColumnDesc().getZeroBasedIndex();
         }
 
-        for (int i = 0; i < hostCols.length; i++) {
-            hostIndex[i] = dimensions.indexOf(hostCols[i]);
-        }
+        if ((allHostsPresent && needCopyDerived) == false)
+            this.shouldReturnDerived = false;
     }
 
     public boolean shouldReturnDerived() {
-        for (int i = 0; i < tupleIndex.length; i++) {
-            if (tupleIndex[i] == -1) {
-                return false;
-            }
-        }
-        return true;
+        return shouldReturnDerived;
     }
 
     public int numHostColumns() {

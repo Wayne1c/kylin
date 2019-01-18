@@ -21,6 +21,7 @@ package org.apache.kylin.storage.parquet.cube;
 import java.util.Objects;
 
 import org.apache.kylin.measure.MeasureType;
+import org.apache.kylin.measure.basic.BasicMeasureType;
 import org.apache.kylin.measure.extendedcolumn.ExtendedColumnMeasureType;
 import org.apache.kylin.metadata.model.FunctionDesc;
 import org.apache.kylin.metadata.model.MeasureDesc;
@@ -41,7 +42,7 @@ public class ParquetColumnFiller implements ColumnFiller {
 
         int i = 0;
         for (TblColRef dim : schema.getDimensions()) {
-            tupleIndex[i++] = tupleInfo.getColumnIndex(dim);
+            tupleIndex[i++] = tupleInfo.hasColumn(dim) ? tupleInfo.getColumnIndex(dim) : -1;
         }
         for (MeasureDesc met : schema.getMeasures()) {
             FunctionDesc func = met.getFunction();
@@ -49,10 +50,10 @@ public class ParquetColumnFiller implements ColumnFiller {
 
             if (func.needRewrite()) {
                 String fieldName = func.getRewriteFieldName();
-                tupleIndex[i] = tupleInfo.getFieldIndex(fieldName);
+                tupleIndex[i] = tupleInfo.hasField(fieldName) ? tupleInfo.getFieldIndex(fieldName) : -1;
             } else {
                 TblColRef col = func.getParameter().getColRefs().get(0);
-                tupleIndex[i] = tupleInfo.getColumnIndex(col);
+                tupleIndex[i] = tupleInfo.hasColumn(col) ? tupleInfo.getColumnIndex(col) : -1;
             }
 
             if (!measureType.needAdvancedTupleFilling()) {
@@ -61,6 +62,7 @@ public class ParquetColumnFiller implements ColumnFiller {
                 final TblColRef extended = ExtendedColumnMeasureType.getExtendedColumn(func);
                 final int extendedColumnInTupleIdx = tupleInfo.hasColumn(extended) ? tupleInfo.getColumnIndex(extended) : -1;
                 tupleIndex[i] = extendedColumnInTupleIdx;
+                measureTypes[i] = measureType;
             } else {
                 throw new UnsupportedOperationException("Unsupported measure type : " + measureType);
             }
@@ -71,15 +73,17 @@ public class ParquetColumnFiller implements ColumnFiller {
 
     public void fill(Object[] row, Tuple tuple) {
         for (int i = 0; i < schema.getDimensions().size(); i++) {
-            tuple.setDimensionValue(tupleIndex[i], Objects.toString(row[i], null));
+            if (tupleIndex[i] >= 0)
+                tuple.setDimensionValue(tupleIndex[i], Objects.toString(row[i], null));
         }
 
         for (int i = schema.getDimensions().size(); i < schema.getTotalFieldCount(); i++) {
-            if (measureTypes[i] != null) {
-                measureTypes[i].fillTupleSimply(tuple, tupleIndex[i], row[i]);
-            } else {
-                //for ExtendedColumn
-                tuple.setDimensionValue(tupleIndex[i], (String) row[i]);
+            if (tupleIndex[i] >= 0 && measureTypes[i] != null) {
+                if (row[i] == null && measureTypes[i] instanceof BasicMeasureType) {
+                    measureTypes[i].fillTupleSimply(tuple, tupleIndex[i], 0);
+                } else {
+                    measureTypes[i].fillTupleSimply(tuple, tupleIndex[i], row[i]);
+                }
             }
         }
     }

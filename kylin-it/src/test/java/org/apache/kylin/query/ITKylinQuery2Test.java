@@ -18,9 +18,14 @@
 
 package org.apache.kylin.query;
 
+import java.io.File;
 import java.sql.DriverManager;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.kylin.common.KylinConfig;
 import org.apache.kylin.common.util.HBaseMetadataTestCase;
 import org.apache.kylin.ext.ClassLoaderUtils;
@@ -31,7 +36,6 @@ import org.apache.kylin.query.routing.Candidate;
 import org.apache.spark.sql.SparderEnv;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -41,7 +45,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Maps;
 
-@Ignore("@RunWith(SparkTestRunner.class) is contained by ITCombination2Test")
+//@Ignore("@RunWith(SparkTestRunner.class) is contained by ITCombination2Test")
 @RunWith(SparkTestRunner.class)
 public class ITKylinQuery2Test extends ITKylinQueryTest {
 
@@ -116,6 +120,72 @@ public class ITKylinQuery2Test extends ITKylinQueryTest {
     @Test
     public void testTopNQuery() throws Exception {
         logger.info("TopNQuery ignored.");
+    }
+
+    //query13: raw query
+    @Override
+    @Test
+    public void testSubQuery() throws Exception {
+        execAndCompQuery(getQueryFolderPrefix() + "src/test/resources/query/sql_subquery", new String[]{"query13"}, true);
+    }
+
+    // raw query
+    @Override
+    @Test
+    public void testUnionallQuery() throws Exception {
+        logger.info("UnionallQuery ignored.");
+    }
+
+    // raw query
+    @Override
+    @Test
+    public void testSingleRunQuery() throws Exception {
+        logger.info("SingleRunQuery ignored.");
+    }
+
+    // raw query
+    @Override
+    @Test
+    public void testVerifyCountQuery() throws Exception {
+        logger.info("VerifyCountQuery ignored.");
+    }
+
+    // raw query
+    @Override
+    @Test
+    public void testRawQuery() throws Exception {
+        logger.info("RawQuery ignored.");
+    }
+
+    // raw query
+    @Override
+    @Test
+    public void testUnionQuery() throws Exception {
+        logger.info("UnionQuery ignored.");
+    }
+
+    // query01: raw query
+    // query02: topN query
+    //fixme query03: limit pushdown
+    // query04: raw query
+    @Override
+    @Test
+    public void testLimitEnabled() throws Exception {
+        logger.info("LimitEnabled ignored.");
+    }
+
+    // query110: raw query
+    @Override
+    @Test
+    public void testCommonQuery() throws Exception {
+        execAndCompQuery(getQueryFolderPrefix() + "src/test/resources/query/sql", new String[]{"query110"}, true);
+    }
+
+    // query110: raw query
+    @Override
+    @Test
+    public void testLimitCorrectness() throws Exception {
+        this.execLimitAndValidate(getQueryFolderPrefix() + "src/test/resources/query/sql", new String[]{"query110"});
     }
 }
                                                   

@@ -18,16 +18,25 @@
 
 package org.apache.kylin.storage.parquet.cube;
 
-import com.google.common.collect.Maps;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+
+import org.apache.kylin.common.util.Array;
 import org.apache.kylin.cube.CubeInstance;
 import org.apache.kylin.cube.model.CubeDesc;
 import org.apache.kylin.dict.lookup.ILookupTable;
 import org.apache.kylin.measure.MeasureType;
 import org.apache.kylin.measure.bitmap.BitmapMeasureType;
+import org.apache.kylin.measure.extendedcolumn.ExtendedColumnMeasureType;
 import org.apache.kylin.measure.hllc.HLLCMeasureType;
 import org.apache.kylin.measure.percentile.PercentileMeasureType;
 import org.apache.kylin.metadata.datatype.DataTypeSerializer;
 import org.apache.kylin.metadata.model.MeasureDesc;
+import org.apache.kylin.metadata.model.TblColRef;
 import org.apache.kylin.metadata.tuple.ITuple;
 import org.apache.kylin.metadata.tuple.ITupleIterator;
 import org.apache.kylin.metadata.tuple.Tuple;
@@ -36,12 +45,7 @@ import org.apache.kylin.storage.StorageContext;
 import org.apache.kylin.storage.parquet.ParquetSchema;
 import org.apache.spark.sql.Row;
 
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
+import com.google.common.collect.Maps;
 
 public class ParquetTupleIterator implements ITupleIterator {
     private final CubeInstance cubeInstance;
@@ -67,19 +71,22 @@ public class ParquetTupleIterator implements ITupleIterator {
         fillers.add(new ParquetColumnFiller(schema, tupleInfo));
 
         // derived columns fillers
-        List<CubeDesc.DeriveInfo> deriveInfos = cubeInstance.getDescriptor().getDeriveInfos(schema.getDimensions());
+        Map<Array<TblColRef>, List<CubeDesc.DeriveInfo>> hostToDerivedInfo = cubeInstance.getDescriptor().getHostToDerivedInfo(schema.getDimensions(), null);
 
-        for (CubeDesc.DeriveInfo info : deriveInfos) {
-            DerivedIndexMapping mapping = new DerivedIndexMapping(info, schema.getDimensions(), tupleInfo);
-            if (!mapping.shouldReturnDerived()) {
-                continue;
-            }
-            if (info.type == CubeDesc.DeriveType.LOOKUP) {
-                ILookupTable lookupTable = lookupCache.get(info.join);
-                fillers.add(new DerivedColumnFiller(mapping, lookupTable));
+        for (Map.Entry<Array<TblColRef>, List<CubeDesc.DeriveInfo>> entry : hostToDerivedInfo.entrySet()) {
+            TblColRef[] hostCols = entry.getKey().data;
+            for (CubeDesc.DeriveInfo info : entry.getValue()) {
+                DerivedIndexMapping mapping = new DerivedIndexMapping(info, schema.getDimensions(), tupleInfo, hostCols);
+                if (!mapping.shouldReturnDerived()) {
+                    continue;
+                }
+                if (info.type == CubeDesc.DeriveType.LOOKUP) {
+                    ILookupTable lookupTable = lookupCache.get(info.join);
+                    fillers.add(new DerivedColumnFiller(mapping, lookupTable));
 
-            } else if (info.type == CubeDesc.DeriveType.PK_FK) {
-                fillers.add(new PkColumnFiller(mapping));
+                } else if (info.type == CubeDesc.DeriveType.PK_FK) {
+                    fillers.add(new PkColumnFiller(mapping));
+                }
             }
         }
     }
@@ -142,7 +149,8 @@ public class ParquetTupleIterator implements ITupleIterator {
             MeasureType measureType = measure.getFunction().getMeasureType();
             if (measureType instanceof HLLCMeasureType ||
                     measureType instanceof BitmapMeasureType ||
-                    measureType instanceof PercentileMeasureType) {
+                    measureType instanceof PercentileMeasureType ||
+                    measureType instanceof ExtendedColumnMeasureType) {
                 serializerMap.put(i, DataTypeSerializer.create(measure.getFunction().getReturnDataType()));
             }
 

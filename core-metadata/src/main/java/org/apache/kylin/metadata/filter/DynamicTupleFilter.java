@@ -84,6 +84,11 @@ public class DynamicTupleFilter extends TupleFilter {
     }
 
     @Override
+    public boolean canPushDown() {
+        return true;
+    }
+
+    @Override
     public <R> R accept(TupleFilterVisitor<R> visitor) {
         return visitor.visitDynamic(this);
     }
