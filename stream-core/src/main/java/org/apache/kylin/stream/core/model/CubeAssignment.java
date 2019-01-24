@@ -48,6 +48,10 @@ public class CubeAssignment {
     // Map between partition Id and replicaSet Id
     private Map<Integer, Integer> partitionReplicaSetIDMap;
 
+    @JsonProperty("preassignments")
+    // Map between the replicaSet Id and partitions
+    private Map<Integer, List<Partition>> preAssignments;
+
     @JsonCreator
     public CubeAssignment(@JsonProperty("cube_name") String cubeName,
             @JsonProperty("assignments") Map<Integer, List<Partition>> assignments) {

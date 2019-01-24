@@ -1068,6 +1068,7 @@ public class Coordinator implements CoordinatorClient {
                 logger.info("No left quota to build segments for cube:" + cubeName);
                 return result;
             }
+            // 有replicaSet的segment还没上传成功
             if (!checkSegmentIsReadyToBuild(segmentStates, i, cubeAssignedReplicaSets)) {
                 break;
             }

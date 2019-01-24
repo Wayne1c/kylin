@@ -194,6 +194,7 @@ public class StreamingServer implements ReplicaSetLeaderSelector.LeaderChangeLis
             if (isLeader) {
                 sendSegmentsToFullBuild(cubeName, segmentManager, segments);
             }
+            //TODO follower remove local segment cache
         } else {
             purgeSegments(cubeName, segments, retentionPolicyInfo.getProperties());
         }

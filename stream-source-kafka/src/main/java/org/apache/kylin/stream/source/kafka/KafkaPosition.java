@@ -30,6 +30,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Maps.EntryTransformer;
 
 public class KafkaPosition implements ISourcePosition {
+    // partition -> offset
     private Map<Integer, Long> partitionOffsetMap = Maps.newHashMap();
 
     public KafkaPosition() {
