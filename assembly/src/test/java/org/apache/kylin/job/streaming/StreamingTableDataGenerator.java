@@ -63,6 +63,8 @@ public class StreamingTableDataGenerator {
 
         List<String> ret = Lists.newArrayList();
         HashMap<String, String> kvs = Maps.newHashMap();
+        HashMap<String, Integer> itemCategory = Maps.newHashMap();
+
         for (long time : times) {
             kvs.clear();
             kvs.put("timestamp", String.valueOf(time));
@@ -74,9 +76,22 @@ public class StreamingTableDataGenerator {
                     continue;
                 } else if (dataType.isStringFamily()) {
                     char c = (char) ('A' + (int) (26 * r.nextDouble()));
-                    kvs.put(lowerCaseColumnName, String.valueOf(c));
+                    String v = String.valueOf(c);
+                    kvs.put(lowerCaseColumnName, v);
                 } else if (dataType.isIntegerFamily()) {
-                    int v = r.nextInt(10000);
+                    int v;
+                    // generate category_id for joined lookup table
+                    if ("category_id".equals(lowerCaseColumnName)) {
+                        String itm = kvs.get("itm");
+                        if (itemCategory.get(itm) == null) {
+                            v = r.nextInt(10);
+                            itemCategory.put(itm, v);
+                        } else {
+                            v = itemCategory.get(itm);
+                        }
+                    } else {
+                        v = r.nextInt(10000);
+                    }
                     kvs.put(lowerCaseColumnName, String.valueOf(v));
                 } else if (dataType.isNumberFamily()) {
                     String v = String.format(Locale.ROOT, "%.4f", r.nextDouble() * 100);
