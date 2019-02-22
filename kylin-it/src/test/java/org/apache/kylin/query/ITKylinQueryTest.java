@@ -79,6 +79,7 @@ public class ITKylinQueryTest extends KylinTestBase {
     }
 
     @Test
+    @Ignore
     public void testTimeoutQuery() throws Exception {
         try {
 
