@@ -168,7 +168,7 @@ public class CubeVisitService extends CubeVisitProtos.CubeVisitService implement
                         "scanned bytes " + rowBytes + " exceeds threshold " + bytesLimit);
             }
             if ((rowCount % GTScanRequest.terminateCheckInterval == 0) && System.currentTimeMillis() > deadline) {
-                throw new KylinTimeoutException("coprocessor timeout after scanning " + rowCount + " rows");
+                throw new KylinTimeoutException("coprocessor timeout after scanning " + rowCount + " rows" + "cur " + System.currentTimeMillis() + "deadline " + deadline);
             }
             return delegate.hasNext();
         }
@@ -258,6 +258,7 @@ public class CubeVisitService extends CubeVisitProtos.CubeVisitService implement
             final GTScanRequest scanReq = GTScanRequest.serializer
                     .deserialize(ByteBuffer.wrap(HBaseZeroCopyByteString.zeroCopyGetBytes(request.getGtScanRequest())));
             final long deadline = scanReq.getStartTime() + scanReq.getTimeout();
+            logger.info("scan request, startTime:{}, timeout:{}", scanReq.getStartTime(), scanReq.getTimeout());
             checkDeadline(deadline);
 
             List<List<Integer>> hbaseColumnsToGT = Lists.newArrayList();

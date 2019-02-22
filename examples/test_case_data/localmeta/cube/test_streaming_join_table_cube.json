@@ -7,7 +7,7 @@
   "descriptor" : "test_streaming_join_table_cube",
   "display_name" : "test_streaming_join_table_cube",
   "cost" : 50,
-  "status" : "DISABLED",
+  "status" : "READY",
   "segments" : [ ],
   "create_time_utc" : 1550561622009,
   "cuboid_bytes" : null,

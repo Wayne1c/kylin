@@ -141,7 +141,7 @@
   "engine_type" : 2,
   "storage_type" : 2,
   "override_kylin_properties" : {
-    "kylin.cube.algorithm" : "algorithm inmem",
+    "kylin.cube.algorithm" : "inmem",
     "kylin.cube.max-building-segments" : "5"
   },
   "cuboid_black_list" : [ ],
