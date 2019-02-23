@@ -294,6 +294,9 @@ public class CubeHBaseEndpointRPC extends CubeHBaseRPC {
                             ServerRpcController controller = new ServerRpcController();
                             BlockingRpcCallback<CubeVisitResponse> rpcCallback = new BlockingRpcCallback<>();
                             try {
+                                final GTScanRequest scanReq = GTScanRequest.serializer
+                                        .deserialize(ByteBuffer.wrap(HBaseZeroCopyByteString.zeroCopyGetBytes(request.getGtScanRequest())));
+                                logger.info("111scan request, startTime:{}, timeout:{}", scanReq.getStartTime(), scanReq.getTimeout());
                                 rowsService.visitCube(controller, request, rpcCallback);
                                 CubeVisitResponse response = rpcCallback.get();
                                 if (controller.failedOnException()) {

@@ -257,6 +257,7 @@ public class CubeVisitService extends CubeVisitProtos.CubeVisitService implement
 
             final GTScanRequest scanReq = GTScanRequest.serializer
                     .deserialize(ByteBuffer.wrap(HBaseZeroCopyByteString.zeroCopyGetBytes(request.getGtScanRequest())));
+            logger.info("scanReq.toString() = {}", scanReq.toString());
             final long deadline = scanReq.getStartTime() + scanReq.getTimeout();
             checkDeadline(deadline);
 
