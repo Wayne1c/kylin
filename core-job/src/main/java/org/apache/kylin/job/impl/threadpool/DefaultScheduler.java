@@ -18,6 +18,7 @@
 
 package org.apache.kylin.job.impl.threadpool;
 
+import java.lang.reflect.Method;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -26,6 +27,8 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.kylin.common.KylinConfig;
 import org.apache.kylin.common.util.SetThreadName;
 import org.apache.kylin.job.Scheduler;
 import org.apache.kylin.job.engine.JobEngineConfig;
@@ -77,6 +80,7 @@ public class DefaultScheduler implements Scheduler<AbstractExecutable> {
     private JobLock jobLock;
     private FetcherRunner fetcher;
     private ScheduledExecutorService fetcherPool;
+    private ScheduledExecutorService cleanUpExecutor;
     private ExecutorService jobPool;
     private DefaultContext context;
 
@@ -160,6 +164,7 @@ public class DefaultScheduler implements Scheduler<AbstractExecutable> {
                 new SynchronousQueue<Runnable>());
         context = new DefaultContext(Maps.<String, Executable> newConcurrentMap(), jobEngineConfig.getConfig());
 
+
         logger.info("Staring resume all running jobs.");
         ExecutableManager executableManager = getExecutableManager();
         executableManager.resumeAllRunningJobs();
@@ -179,6 +184,28 @@ public class DefaultScheduler implements Scheduler<AbstractExecutable> {
                 : new DefaultFetcherRunner(jobEngineConfig, context, jobExecutor);
         logger.info("Creating fetcher pool instance:" + System.identityHashCode(fetcher));
         fetcherPool.scheduleAtFixedRate(fetcher, pollSecond / 10, pollSecond, TimeUnit.SECONDS);
+
+        if (jobEngineConfig.getConfig().isMetadataAutoCleanup()) {
+            cleanUpExecutor = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setNameFormat("MetadataCleanupJob").build());
+
+            // metadata clean up scheduler
+            cleanUpExecutor.scheduleAtFixedRate(new Runnable() {
+                @Override
+                public void run() {
+                    logger.info("Start to cleanup metadata");
+                    try {
+                        KylinConfig config = jobEngineConfig.getConfig();
+
+                        Object metadataCleanupJob = Class.forName("org.apache.kylin.rest.job.MetadataCleanupJob").getConstructor(KylinConfig.class).newInstance(config);
+                        Method cleanupMethod = metadataCleanupJob.getClass().getMethod("cleanup", boolean.class, int.class);
+                        cleanupMethod.invoke(metadataCleanupJob, config.isDelMetaWhenCleanup(), config.getThresholdForJobToCleanup());
+                    } catch (Exception e) {
+                        logger.error("Failed to clean up metadata", e);
+                    }
+                }
+            }, 10, jobEngineConfig.getConfig().getCleanJobScheduleInterval(), TimeUnit.MINUTES);
+        }
+
         hasStarted = true;
     }
 

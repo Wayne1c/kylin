@@ -55,12 +55,12 @@ public class CuratorLeaderSelectorTest extends LocalFileMetadataTestCase {
         String jobEnginePath = CuratorScheduler.getJobEnginePath(CuratorScheduler.slickMetadataPrefix(kylinConfig.getMetadataUrlPrefix()));
         CuratorFramework client = CuratorFrameworkFactory.newClient(zkString, new ExponentialBackoffRetry(3000, 3));
         client.start();
-        CuratorLeaderSelector s1 = new CuratorLeaderSelector(client //
+        SchedulerLeaderSelector s1 = new SchedulerLeaderSelector(client //
                 , jobEnginePath //
                 , server1 //
                 , new JobEngineConfig(kylinConfig)); //
         Assert.assertFalse(s1.hasDefaultSchedulerStarted());
-        CuratorLeaderSelector s2 = new CuratorLeaderSelector(client //
+        SchedulerLeaderSelector s2 = new SchedulerLeaderSelector(client //
                 , jobEnginePath //
                 , server2 //
                 , new JobEngineConfig(kylinConfig)); //
@@ -89,7 +89,7 @@ public class CuratorLeaderSelectorTest extends LocalFileMetadataTestCase {
         Assert.assertEquals(s1.getParticipants(), s2.getParticipants());
     }
 
-    private void assertSchedulerStart(CuratorLeaderSelector sele) throws InterruptedException {
+    private void assertSchedulerStart(SchedulerLeaderSelector sele) throws InterruptedException {
         for (int i = 0; i < 50 && !sele.hasDefaultSchedulerStarted(); i++) {
             Thread.sleep(300);
         }

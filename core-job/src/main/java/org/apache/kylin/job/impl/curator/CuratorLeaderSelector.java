@@ -22,32 +22,24 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.leader.LeaderSelector;
 import org.apache.curator.framework.recipes.leader.LeaderSelectorListenerAdapter;
 import org.apache.curator.framework.recipes.leader.Participant;
-import org.apache.kylin.job.engine.JobEngineConfig;
-import org.apache.kylin.job.impl.threadpool.DefaultScheduler;
-import org.apache.kylin.job.lock.MockJobLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class CuratorLeaderSelector extends LeaderSelectorListenerAdapter implements Closeable {
+abstract class CuratorLeaderSelector extends LeaderSelectorListenerAdapter implements Closeable {
     private static final Logger logger = LoggerFactory.getLogger(CuratorLeaderSelector.class);
-    private final String name;
-    private final LeaderSelector leaderSelector;
-    private JobEngineConfig jobEngineConfig;
-    private DefaultScheduler defaultScheduler = null;
+    protected final String name;
+    protected final LeaderSelector leaderSelector;
 
-    CuratorLeaderSelector(CuratorFramework client, String path, String name, JobEngineConfig jobEngineConfig) {
+    public CuratorLeaderSelector(CuratorFramework client, String path, String name) {
         this.name = name;
         this.leaderSelector = new LeaderSelector(client, path, this);
         this.leaderSelector.setId(name);
         this.leaderSelector.autoRequeue();
-        this.jobEngineConfig = jobEngineConfig;
-        this.defaultScheduler = DefaultScheduler.getInstance();
     }
 
     public Participant getLeader() {
@@ -69,15 +61,11 @@ public class CuratorLeaderSelector extends LeaderSelectorListenerAdapter impleme
         return r;
     }
 
-    public boolean hasDefaultSchedulerStarted() {
-        return defaultScheduler.hasStarted();
-    }
-
-    public void start() throws IOException {
+    public void start() {
         leaderSelector.start();
     }
 
-    public boolean hasLeadership() throws IOException {
+    public boolean hasLeadership() {
         return leaderSelector.hasLeadership();
     }
 
@@ -95,22 +83,4 @@ public class CuratorLeaderSelector extends LeaderSelectorListenerAdapter impleme
         logger.info(name + " is stopped");
     }
 
-    @Override
-    public void takeLeadership(CuratorFramework client) throws Exception {
-        logger.info(name + " is the leader for job engine now.");
-        try {
-            defaultScheduler.init(jobEngineConfig, new MockJobLock());
-            while (true) {
-                Thread.sleep(TimeUnit.SECONDS.toMillis(5L));
-            }
-        } catch (InterruptedException ie) {
-            logger.error(this.name + " was interrupted.", ie);
-        } catch (Throwable th) {
-            logger.error("Other exception occurred when initialization DefaultScheduler:", th);
-        } finally {
-            logger.warn(this.name + " relinquishing leadership.");
-            if (defaultScheduler != null)
-                defaultScheduler.shutdown();
-        }
-    }
 }

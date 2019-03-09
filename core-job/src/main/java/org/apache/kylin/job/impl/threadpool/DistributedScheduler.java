@@ -30,8 +30,13 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.io.IOUtils;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.kylin.common.KylinConfig;
 import org.apache.kylin.common.lock.DistributedLock;
+import org.apache.kylin.common.lock.ZookeeperLock;
 import org.apache.kylin.common.util.SetThreadName;
 import org.apache.kylin.common.util.StringUtil;
 import org.apache.kylin.job.Scheduler;
@@ -45,6 +50,7 @@ import org.apache.kylin.job.execution.Executable;
 import org.apache.kylin.job.execution.ExecutableManager;
 import org.apache.kylin.job.execution.ExecutableState;
 import org.apache.kylin.job.execution.Output;
+import org.apache.kylin.job.impl.curator.MetaCleanLeaderSelector;
 import org.apache.kylin.job.lock.JobLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,6 +68,7 @@ public class DistributedScheduler implements Scheduler<AbstractExecutable> {
     private static final Logger logger = LoggerFactory.getLogger(DistributedScheduler.class);
 
     public static final String ZOOKEEPER_LOCK_PATH = "/job_engine/lock"; // note ZookeeperDistributedLock will ensure zk path prefix: /${kylin.env.zookeeper-base-path}/metadata
+    public static final String META_CLEAN_LEADER_PATH = "/meta_clean/leader";
 
     public static DistributedScheduler getInstance(KylinConfig config) {
         return config.getManager(DistributedScheduler.class);
@@ -79,6 +86,7 @@ public class DistributedScheduler implements Scheduler<AbstractExecutable> {
     private ScheduledExecutorService fetcherPool;
     private ExecutorService watchPool;
     private ExecutorService jobPool;
+    private MetaCleanLeaderSelector leaderSelector;
     private DefaultContext context;
     private DistributedLock jobLock;
     private Closeable lockWatch;
@@ -135,6 +143,19 @@ public class DistributedScheduler implements Scheduler<AbstractExecutable> {
                     }
                 }
             }
+        }
+    }
+
+    private class WatcherMetaCleanProcessImpl implements DistributedLock.Watcher {
+
+        @Override
+        public void onLock(String lockPath, String client) {
+
+        }
+
+        @Override
+        public void onUnlock(String lockPath, String client) {
+
         }
     }
 
@@ -226,8 +247,32 @@ public class DistributedScheduler implements Scheduler<AbstractExecutable> {
                 ? new PriorityFetcherRunner(jobEngineConfig, context, jobExecutor)
                 : new DefaultFetcherRunner(jobEngineConfig, context, jobExecutor);
         fetcherPool.scheduleAtFixedRate(fetcher, pollSecond / 10, pollSecond, TimeUnit.SECONDS);
-        hasStarted = true;
 
+        if (jobEngineConfig.getConfig().isMetadataAutoCleanup()) {
+            // metadata cleanup scheduler
+            CuratorFramework curatorClient;
+            String leaderPath = null;
+            if (this.jobLock instanceof ZookeeperLock) {
+                curatorClient = ((ZookeeperLock)this.jobLock).getZKClient();
+                leaderPath = ((ZookeeperLock)this.jobLock).getZKPathBase() + META_CLEAN_LEADER_PATH;
+            } else {
+                String zkAddress = jobEngineConfig.getConfig().getZookeeperConnectString();
+                int baseSleepTimeMs = jobEngineConfig.getConfig().getZKBaseSleepTimeMs();
+                int maxRetries = jobEngineConfig.getConfig().getZKMaxRetries();
+                leaderPath = "/kylin/" + jobEngineConfig.getConfig().getMetadataUrlPrefix() + META_CLEAN_LEADER_PATH;
+
+                curatorClient = CuratorFrameworkFactory.newClient(zkAddress, new ExponentialBackoffRetry(baseSleepTimeMs, maxRetries));
+                curatorClient.start();
+
+                logger.info("New ZK Client start: {}", zkAddress);
+            }
+
+            // current server join leader election, only leader can run metadata cleanup job
+            leaderSelector = new MetaCleanLeaderSelector(curatorClient, leaderPath, this.serverName, jobEngineConfig.getConfig());
+            leaderSelector.start();
+        }
+
+        hasStarted = true;
         resumeAllRunningJobs();
     }
 
@@ -282,6 +327,9 @@ public class DistributedScheduler implements Scheduler<AbstractExecutable> {
 
         jobPool.shutdown();
         logger.info("The jobPoll has down");
+
+        IOUtils.closeQuietly(leaderSelector);
+        logger.info("The leader selector has down");
     }
 
     private void releaseAllLocks() {

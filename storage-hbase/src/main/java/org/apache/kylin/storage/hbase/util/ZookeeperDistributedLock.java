@@ -37,6 +37,7 @@ import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.kylin.common.KylinConfig;
 import org.apache.kylin.common.lock.DistributedLock;
 import org.apache.kylin.common.lock.DistributedLockFactory;
+import org.apache.kylin.common.lock.ZookeeperLock;
 import org.apache.kylin.job.lock.JobLock;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -49,9 +50,19 @@ import org.slf4j.LoggerFactory;
  * 
  * All <code>lockPath</code> will be prefix-ed with "/kylin/metadata-prefix" automatically.
  */
-public class ZookeeperDistributedLock implements DistributedLock, JobLock {
+public class ZookeeperDistributedLock implements DistributedLock, JobLock, ZookeeperLock {
     private static Logger logger = LoggerFactory.getLogger(ZookeeperDistributedLock.class);
     private static final Random random = new Random();
+
+    @Override
+    public CuratorFramework getZKClient() {
+        return this.curator;
+    }
+
+    @Override
+    public String getZKPathBase() {
+        return this.zkPathBase;
+    }
 
     public static class Factory extends DistributedLockFactory {
 

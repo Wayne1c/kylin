@@ -21,13 +21,15 @@ package org.apache.kylin.storage.hbase.util;
 import java.io.Closeable;
 import java.util.concurrent.Executor;
 
+import org.apache.curator.framework.CuratorFramework;
 import org.apache.kylin.common.lock.DistributedLock;
+import org.apache.kylin.common.lock.ZookeeperLock;
 import org.apache.kylin.job.lock.JobLock;
 
 /**
  * A simple delegator to ZookeeperDistributedLock with a default constructor.
  */
-public class ZookeeperJobLock implements DistributedLock, JobLock {
+public class ZookeeperJobLock implements DistributedLock, JobLock, ZookeeperLock {
 
     private ZookeeperDistributedLock lock = (ZookeeperDistributedLock) new ZookeeperDistributedLock.Factory().lockForCurrentProcess();
 
@@ -86,4 +88,13 @@ public class ZookeeperJobLock implements DistributedLock, JobLock {
         lock.unlockJobEngine();
     }
 
+    @Override
+    public CuratorFramework getZKClient() {
+        return lock.getZKClient();
+    }
+
+    @Override
+    public String getZKPathBase() {
+        return lock.getZKPathBase();
+    }
 }

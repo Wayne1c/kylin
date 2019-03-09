@@ -19,7 +19,6 @@
 package org.apache.kylin.job.impl.curator;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.net.InetAddress;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -63,7 +62,7 @@ public class CuratorScheduler implements Scheduler<AbstractExecutable> {
     private static final Logger logger = LoggerFactory.getLogger(CuratorScheduler.class);
     private boolean started = false;
     private CuratorFramework curatorClient = null;
-    private static CuratorLeaderSelector jobClient = null;
+    private static SchedulerLeaderSelector jobClient = null;
     private ServiceDiscovery<LinkedHashMap> serviceDiscovery = null;
     private ServiceCache<LinkedHashMap> serviceCache = null;
     private KylinConfig kylinConfig;
@@ -107,12 +106,12 @@ public class CuratorScheduler implements Scheduler<AbstractExecutable> {
             String jobEnginePath = getJobEnginePath(slickMetadataPrefix(kylinConfig.getMetadataUrlPrefix()));
 
             if (ServerMode.isJob(jobEngineConfig.getConfig())) {
-                jobClient = new CuratorLeaderSelector(curatorClient, jobEnginePath, restAddress, jobEngineConfig);
+                jobClient = new SchedulerLeaderSelector(curatorClient, jobEnginePath, restAddress, jobEngineConfig);
                 try {
                     logger.info("start Job Engine, lock path is: " + jobEnginePath);
                     jobClient.start();
                     monitorJobEngine();
-                } catch (IOException e) {
+                } catch (Exception e) {
                     throw new SchedulerException(e);
                 }
             } else {

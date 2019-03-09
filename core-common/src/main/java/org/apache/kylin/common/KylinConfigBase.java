@@ -490,6 +490,23 @@ public abstract class KylinConfigBase implements Serializable {
         return getOptional("kylin.metadata.hbase-client-retries-number", "1");
     }
 
+    // metadata cleanup config
+    public boolean isMetadataAutoCleanup() {
+        return Boolean.parseBoolean(getOptional("kylin.metadata.cleanup-auto-schedule", FALSE));
+    }
+
+    public boolean isDelMetaWhenCleanup() {
+        return Boolean.parseBoolean(getOptional("kylin.metadata.cleanup-do-delete", FALSE));
+    }
+
+    public int getThresholdForJobToCleanup() {
+        return Integer.parseInt(getOptional("kylin.metadata.cleanup-threshold-for-job-days", "30"));
+    }
+
+    public int getCleanJobScheduleInterval() {
+        return Integer.parseInt(getOptional("kylin.metadata.cleanup-interval-minutes", "1440")); // default 24 hours
+    }
+
     // ============================================================================
     // DICTIONARY & SNAPSHOT
     // ============================================================================
