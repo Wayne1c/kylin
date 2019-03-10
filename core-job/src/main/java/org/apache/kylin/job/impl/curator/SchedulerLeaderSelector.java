@@ -18,8 +18,6 @@
 
 package org.apache.kylin.job.impl.curator;
 
-import java.util.concurrent.TimeUnit;
-
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.kylin.job.engine.JobEngineConfig;
 import org.apache.kylin.job.impl.threadpool.DefaultScheduler;
@@ -43,19 +41,11 @@ public class SchedulerLeaderSelector extends CuratorLeaderSelector {
     }
 
     @Override
-    public void takeLeadership(CuratorFramework client) throws Exception {
-        logger.info(name + " is the leader for job engine now.");
+    void doWork(CuratorFramework client) throws Exception {
         try {
+            logger.info("Start to init a defaultScheduler");
             defaultScheduler.init(jobEngineConfig, new MockJobLock());
-            while (true) {
-                Thread.sleep(TimeUnit.SECONDS.toMillis(5L));
-            }
-        } catch (InterruptedException ie) {
-            logger.error(this.name + " was interrupted.", ie);
-        } catch (Throwable th) {
-            logger.error("Other exception occurred when initialization DefaultScheduler:", th);
         } finally {
-            logger.warn(this.name + " relinquishing leadership.");
             if (defaultScheduler != null)
                 defaultScheduler.shutdown();
         }

@@ -22,6 +22,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.leader.LeaderSelector;
@@ -83,4 +84,28 @@ abstract class CuratorLeaderSelector extends LeaderSelectorListenerAdapter imple
         logger.info(name + " is stopped");
     }
 
+    @Override
+    public void takeLeadership(CuratorFramework client) throws Exception {
+        logger.info(name + " is the leader for job engine now.");
+
+        try {
+            doWork(client);
+
+            while (true) {
+                Thread.sleep(TimeUnit.SECONDS.toMillis(5L));
+            }
+        } catch (InterruptedException ie) {
+            logger.error(this.name + " was interrupted.", ie);
+        } catch (Throwable th) {
+            logger.error("Other exception occurred when initialization DefaultScheduler:", th);
+        } finally {
+            logger.warn(this.name + " relinquishing leadership.");
+        }
+    }
+
+    /**
+     * do something when taking the leader ship
+     * @param client
+     */
+    abstract void doWork(CuratorFramework client) throws Exception;
 }

@@ -37,6 +37,7 @@ import org.apache.kylin.job.exception.SchedulerException;
 import org.apache.kylin.job.execution.AbstractExecutable;
 import org.apache.kylin.job.execution.Executable;
 import org.apache.kylin.job.execution.ExecutableManager;
+import org.apache.kylin.job.impl.curator.MetaCleanScheduler;
 import org.apache.kylin.job.lock.JobLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,7 +81,7 @@ public class DefaultScheduler implements Scheduler<AbstractExecutable> {
     private JobLock jobLock;
     private FetcherRunner fetcher;
     private ScheduledExecutorService fetcherPool;
-    private ScheduledExecutorService cleanUpExecutor;
+    private MetaCleanScheduler metaCleanScheduler;
     private ExecutorService jobPool;
     private DefaultContext context;
 
@@ -186,24 +187,7 @@ public class DefaultScheduler implements Scheduler<AbstractExecutable> {
         fetcherPool.scheduleAtFixedRate(fetcher, pollSecond / 10, pollSecond, TimeUnit.SECONDS);
 
         if (jobEngineConfig.getConfig().isMetadataAutoCleanup()) {
-            cleanUpExecutor = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setNameFormat("MetadataCleanupJob").build());
-
-            // metadata clean up scheduler
-            cleanUpExecutor.scheduleAtFixedRate(new Runnable() {
-                @Override
-                public void run() {
-                    logger.info("Start to cleanup metadata");
-                    try {
-                        KylinConfig config = jobEngineConfig.getConfig();
-
-                        Object metadataCleanupJob = Class.forName("org.apache.kylin.rest.job.MetadataCleanupJob").getConstructor(KylinConfig.class).newInstance(config);
-                        Method cleanupMethod = metadataCleanupJob.getClass().getMethod("cleanup", boolean.class, int.class);
-                        cleanupMethod.invoke(metadataCleanupJob, config.isDelMetaWhenCleanup(), config.getThresholdForJobToCleanup());
-                    } catch (Exception e) {
-                        logger.error("Failed to clean up metadata", e);
-                    }
-                }
-            }, 10, jobEngineConfig.getConfig().getCleanJobScheduleInterval(), TimeUnit.MINUTES);
+            new MetaCleanScheduler(jobEngineConfig.getConfig()).scheduleCleanup();
         }
 
         hasStarted = true;

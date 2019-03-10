@@ -103,7 +103,7 @@ public class DebugTomcat {
     public static void main(String[] args) throws Exception {
         setupDebugEnv();
 
-        int port = 7070;
+        int port = 7071;
         if (args.length >= 1) {
             port = Integer.parseInt(args[0]);
         }
