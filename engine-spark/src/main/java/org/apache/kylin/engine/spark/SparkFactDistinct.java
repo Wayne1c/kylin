@@ -654,6 +654,9 @@ public class SparkFactDistinct extends AbstractApplication implements Serializab
         private CubeDesc cubeDesc;
         private String maxValue = null;
         private String minValue = null;
+        private boolean isDimensionCol;
+        private boolean isDictCol;
+        private boolean needCompare;
         private List<Tuple2<String, Tuple3<Writable, Writable, String>>> result;
 
         public MultiOutputFunction(String cubeName, String metaurl, SerializableConfiguration conf,
@@ -688,6 +691,10 @@ public class SparkFactDistinct extends AbstractApplication implements Serializab
                     // normal col
                     col = reducerMapping.getColForReducer(taskId);
                     Preconditions.checkNotNull(col);
+
+                    isDimensionCol = cubeDesc.listDimensionColumnsExcludingDerived(true).contains(col);
+                    isDictCol =
+                    needCompare = isDimensionCol && col.getType().needCompare();
 
                     // local build dict
                     buildDictInReducer = kConfig.isBuildDictInReducerEnabled();
@@ -758,7 +765,7 @@ public class SparkFactDistinct extends AbstractApplication implements Serializab
                     String value = Bytes.toString(key.getBytes(), 1, key.getLength() - 1);
                     logAFewRows(value);
                     // if dimension col, compute max/min value
-                    if (cubeDesc.listDimensionColumnsExcludingDerived(true).contains(col) && col.getType().needCompare()) {
+                    if (needCompare) {
                         if (minValue == null || col.getType().compare(minValue, value) > 0) {
                             minValue = value;
                         }
@@ -768,16 +775,15 @@ public class SparkFactDistinct extends AbstractApplication implements Serializab
                     }
 
                     //if dict column
-                    if (cubeDesc.getAllColumnsNeedDictionaryBuilt().contains(col)) {
+                    if (isDictCol) {
                         if (buildDictInReducer) {
                             builder.addValue(value);
                         } else {
-                            byte[] keyBytes = Bytes.copy(key.getBytes(), 1, key.getLength() - 1);
                             // output written to baseDir/colName/-r-00000 (etc)
                             String fileName = col.getIdentity() + "/";
                             result.add(new Tuple2<String, Tuple3<Writable, Writable, String>>(
                                     BatchConstants.CFG_OUTPUT_COLUMN, new Tuple3<Writable, Writable, String>(
-                                            NullWritable.get(), new Text(keyBytes), fileName)));
+                                            NullWritable.get(), new Text(value.getBytes(StandardCharsets.UTF_8)), fileName)));
                         }
                     }
                 }
@@ -795,7 +801,7 @@ public class SparkFactDistinct extends AbstractApplication implements Serializab
                 outputStatistics(allCuboids, result);
             } else {
                 //dimension col
-                if (cubeDesc.listDimensionColumnsExcludingDerived(true).contains(col)) {
+                if (isDimensionCol) {
                     outputDimRangeInfo(result);
                 }
                 // dic col
