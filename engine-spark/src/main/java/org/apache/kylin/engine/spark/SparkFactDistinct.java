@@ -655,8 +655,8 @@ public class SparkFactDistinct extends AbstractApplication implements Serializab
         private String maxValue = null;
         private String minValue = null;
         private boolean isDimensionCol;
-        private boolean isDictCol;
         private boolean needCompare;
+        private boolean isDictCol;
         private List<Tuple2<String, Tuple3<Writable, Writable, String>>> result;
 
         public MultiOutputFunction(String cubeName, String metaurl, SerializableConfiguration conf,
@@ -693,8 +693,8 @@ public class SparkFactDistinct extends AbstractApplication implements Serializab
                     Preconditions.checkNotNull(col);
 
                     isDimensionCol = cubeDesc.listDimensionColumnsExcludingDerived(true).contains(col);
-                    isDictCol =
                     needCompare = isDimensionCol && col.getType().needCompare();
+                    isDictCol = cubeDesc.getAllColumnsNeedDictionaryBuilt().contains(col);
 
                     // local build dict
                     buildDictInReducer = kConfig.isBuildDictInReducerEnabled();
