@@ -58,6 +58,14 @@ public class RowKeySplitter implements java.io.Serializable {
         }
     }
 
+    public int getHeaderLength() {
+        if (enableSharding) {
+            return RowConstants.ROWKEY_SHARDID_LEN + RowConstants.ROWKEY_CUBOIDID_LEN;//shard+cuboid
+        } else {
+            return RowConstants.ROWKEY_CUBOIDID_LEN;//cuboid
+        }
+    }
+
     public int getBufferSize() {
         return bufferSize;
     }
