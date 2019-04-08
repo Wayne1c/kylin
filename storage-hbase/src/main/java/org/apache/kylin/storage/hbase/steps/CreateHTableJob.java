@@ -252,7 +252,32 @@ public class CreateHTableJob extends AbstractHadoopJob {
             saveHFileSplits(innerRegionSplits, mbPerRegion, hfileSplitsOutputFolder, kylinConfig);
             return getSplitsByRegionCount(nRegion);
         } else {
-            throw new IllegalStateException("Not supported");
+            List<Long> regionSplit = Lists.newArrayList();
+
+            long size = 0;
+            int regionIndex = 0;
+            int cuboidCount = 0;
+            for (int i = 0; i < allCuboids.size(); i++) {
+                long cuboidId = allCuboids.get(i);
+                if (size >= mbPerRegion || (size + cubeSizeMap.get(cuboidId)) >= mbPerRegion * 1.2) {
+                    // if the size already bigger than threshold, or it will exceed by 20%, cut for next region
+                    regionSplit.add(cuboidId);
+                    logger.info("Region " + regionIndex + " will be " + size + " MB, contains cuboids < " + cuboidId
+                            + " (" + cuboidCount + ") cuboids");
+                    size = 0;
+                    cuboidCount = 0;
+                    regionIndex++;
+                }
+                size += cubeSizeMap.get(cuboidId);
+                cuboidCount++;
+            }
+
+            byte[][] result = new byte[regionSplit.size()][];
+            for (int i = 0; i < regionSplit.size(); i++) {
+                result[i] = Bytes.toBytes(regionSplit.get(i));
+            }
+
+            return result;
         }
     }
 

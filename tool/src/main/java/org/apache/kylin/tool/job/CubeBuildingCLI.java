@@ -34,6 +34,8 @@ import org.apache.kylin.engine.EngineFactory;
 import org.apache.kylin.job.exception.JobException;
 import org.apache.kylin.job.execution.DefaultChainedExecutable;
 import org.apache.kylin.job.execution.ExecutableManager;
+import org.apache.kylin.metadata.model.IEngineAware;
+import org.apache.kylin.metadata.model.IStorageAware;
 import org.apache.kylin.metadata.model.SegmentRange.TSRange;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -102,6 +104,10 @@ public class CubeBuildingCLI extends AbstractApplication {
     private void submitJob(CubeInstance cube, TSRange tsRange, CubeBuildTypeEnum buildType,
             boolean forceMergeEmptySeg, String submitter) throws IOException, JobException {
         checkCubeDescSignature(cube);
+
+        if (cube.getStorageType() == IStorageAware.ID_HBASE && cube.getEngineType() == IEngineAware.ID_SPARK) {
+            throw new JobException("Storage type 0 not support spark engine");
+        }
 
         DefaultChainedExecutable job;
 

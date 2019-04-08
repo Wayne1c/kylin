@@ -312,8 +312,6 @@ KylinApp.controller('CubeSchemaCtrl', function ($scope, QueryService, UserServic
         return (table.name === $scope.metaModel.model.fact_table && _.values(tableConfig.streamingSourceType).indexOf(table.source_type) > -1)
     })) {
         $scope.cubeMetaFrame.storage_type = 3;
-    } else {
-        $scope.cubeMetaFrame.storage_type = 2;
     }
     return true;
   }
