@@ -602,7 +602,7 @@
   "auto_merge_time_ranges": null,
   "retention_range": 0,
   "engine_type": 2,
-  "storage_type": 2,
+  "storage_type": 0,
   "override_kylin_properties": {
     "kylin.cube.algorithm": "INMEM",
     "kylin.dictionary.shrunken-from-global-enabled": "true"
