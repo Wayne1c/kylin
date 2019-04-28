@@ -89,8 +89,10 @@ public class QueryController extends BasicController {
 
     @RequestMapping(value = "/query", method = RequestMethod.POST, produces = { "application/json" })
     @ResponseBody
-    public SQLResponse query(@RequestBody PrepareSqlRequest sqlRequest) {
-        return queryService.doQueryWithCache(sqlRequest);
+    public SQLResponse query(HttpServletResponse response, @RequestBody PrepareSqlRequest sqlRequest) {
+        response.setStatus(302);
+        return new SQLResponse();
+        //return queryService.doQueryWithCache(sqlRequest);
     }
 
     // TODO should be just "prepare" a statement, get back expected ResultSetMetaData
