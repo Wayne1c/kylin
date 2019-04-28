@@ -22,7 +22,6 @@ import org.apache.kylin.metadata.project.ProjectInstance;
 import org.apache.kylin.query.util.QueryUtil;
 import org.apache.kylin.rest.request.MetaRequest;
 import org.apache.kylin.rest.request.PrepareSqlRequest;
-import org.apache.kylin.rest.response.SQLResponse;
 import org.apache.kylin.rest.service.QueryService;
 import org.apache.kylin.rest.service.ServiceTestBase;
 import org.junit.Assert;
