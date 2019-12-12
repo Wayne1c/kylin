@@ -25,7 +25,7 @@ import java.io.Serializable;
 import java.nio.ByteBuffer;
 
 public class RoaringBitmapCounterFactory implements BitmapCounterFactory, Serializable {
-    public static final BitmapCounterFactory INSTANCE = new RoaringBitmapCounterFactory();
+        public static final BitmapCounterFactory INSTANCE = new RoaringBitmapCounterFactory();
 
     private RoaringBitmapCounterFactory() {}
 

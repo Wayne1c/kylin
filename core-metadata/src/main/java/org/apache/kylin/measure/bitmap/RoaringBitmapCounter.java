@@ -86,6 +86,16 @@ public class RoaringBitmapCounter implements BitmapCounter, Serializable {
     }
 
     @Override
+    public void xorWith(BitmapCounter another) {
+        if (another instanceof RoaringBitmapCounter) {
+            RoaringBitmapCounter input = (RoaringBitmapCounter) another;
+            getMutableBitmap().xor(input.bitmap);
+            return;
+        }
+        throw new IllegalArgumentException("Unsupported type: " + another.getClass().getCanonicalName());
+    }
+
+    @Override
     public void clear() {
         bitmap = new MutableRoaringBitmap();
     }

@@ -79,6 +79,7 @@ import org.apache.kylin.common.util.StringUtil;
 import org.apache.kylin.cube.CubeInstance;
 import org.apache.kylin.cube.CubeManager;
 import org.apache.kylin.cube.cuboid.Cuboid;
+import org.apache.kylin.measure.bitmap.RetentionPartialResult;
 import org.apache.kylin.metadata.badquery.BadQueryEntry;
 import org.apache.kylin.metadata.model.DataModelDesc;
 import org.apache.kylin.metadata.model.JoinDesc;
@@ -335,6 +336,9 @@ public class QueryService extends BasicService {
         if (!response.getIsException() && response.getResults() != null) {
             resultRowCount = response.getResults().size();
         }
+
+        // To Do :
+        RetentionPartialResult.clearThreadLocalContexts();
 
         String newLine = System.getProperty("line.separator");
         StringBuilder stringBuilder = new StringBuilder();

@@ -20,10 +20,11 @@ package org.apache.kylin.measure.bitmap;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Arrays;
 
 import org.apache.kylin.common.util.Dictionary;
 import org.apache.kylin.measure.MeasureAggregator;
@@ -38,7 +39,7 @@ import org.apache.kylin.metadata.model.TblColRef;
 import org.apache.kylin.metadata.realization.SQLDigest;
 import org.apache.kylin.metadata.realization.SQLDigest.SQLCall;
 
-import com.google.common.collect.ImmutableMap;
+//import com.google.common.collect.ImmutableMap;
 
 /**
  * Created by sunyerui on 15/12/10.
@@ -46,7 +47,21 @@ import com.google.common.collect.ImmutableMap;
 public class BitmapMeasureType extends MeasureType<BitmapCounter> {
     public static final String FUNC_COUNT_DISTINCT = FunctionDesc.FUNC_COUNT_DISTINCT;
     public static final String FUNC_INTERSECT_COUNT_DISTINCT = "INTERSECT_COUNT";
+    public static final String FUNC_INTERSECT_VALUE = "INTERSECT_VALUE";
     public static final String DATATYPE_BITMAP = "bitmap";
+    public static final String FUNC_INTERSECT_VALUE_BY_UUID = "INTERSECT_VALUE_BY_UUID";
+    public static final String FUNC_INTERSECT_COUNT_BY_UUID = "INTERSECT_COUNT_BY_UUID";
+    public static final String FUNC_INTERSECT_BITMAP_UUID = "INTERSECT_BITMAP_UUID";
+    public static final String FUNC_BITMAP_UUID = "BITMAP_UUID";
+    public static final String FUNC_BITMAP_VALUE = "BITMAP_VALUE";
+    public static final String FUNC_INTERSECT_COUNT_DISTINCT_V2 = "INTERSECT_COUNT_V2";
+    public static final String FUNC_INTERSECT_VALUE_V2 = "INTERSECT_VALUE_V2";
+    public static final String FUNC_INTERSECT_BITMAP_UUID_V2 = "INTERSECT_BITMAP_UUID_V2";
+    public static final String FUNC_SUBTRACT_COUNT_DISTINCT = "SUBTRACT_COUNT";
+    public static final String FUNC_SUBTRACT_VALUE = "SUBTRACT_VALUE";
+    public static final String FUNC_INTERSECT_SUBTRACT_COUNT = "INTERSECT_SUBTRACT_COUNT";
+    public static final String FUNC_INTERSECT_SUBTRACT_VALUE = "INTERSECT_SUBTRACT_VALUE";
+
 
     public static class Factory extends MeasureTypeFactory<BitmapCounter> {
 
@@ -165,9 +180,29 @@ public class BitmapMeasureType extends MeasureType<BitmapCounter> {
         return true;
     }
 
-    static final Map<String, Class<?>> UDAF_MAP = ImmutableMap.of(
-            FUNC_COUNT_DISTINCT, BitmapDistinctCountAggFunc.class,
-            FUNC_INTERSECT_COUNT_DISTINCT, BitmapIntersectDistinctCountAggFunc.class);
+//    static final Map<String, Class<?>> UDAF_MAP = ImmutableMap.of(
+//            FUNC_COUNT_DISTINCT, BitmapDistinctCountAggFunc.class,
+//            FUNC_INTERSECT_COUNT_DISTINCT, BitmapIntersectDistinctCountAggFunc.class,
+//            FUNC_INTERSECT_VALUE, BitmapIntersectValueAggFunc.class);
+
+    static final Map<String, Class<?>> UDAF_MAP = new LinkedHashMap<>();
+    {
+        UDAF_MAP.put(FUNC_COUNT_DISTINCT, BitmapDistinctCountAggFunc.class);
+        UDAF_MAP.put(FUNC_INTERSECT_COUNT_DISTINCT, BitmapIntersectDistinctCountAggFunc.class);
+        UDAF_MAP.put(FUNC_INTERSECT_VALUE, BitmapIntersectValueAggFunc.class);
+        UDAF_MAP.put(FUNC_INTERSECT_BITMAP_UUID, BitmapUuidIntersectAggFunc.class);
+        UDAF_MAP.put(FUNC_INTERSECT_COUNT_BY_UUID, BitmapByUuidIntersectCountAggFunc.class);
+        UDAF_MAP.put(FUNC_INTERSECT_VALUE_BY_UUID, BitmapByUuidIntersectValueAggFunc.class);
+        UDAF_MAP.put(FUNC_BITMAP_UUID, BitmapUuidDistinctAggFunc.class);
+        UDAF_MAP.put(FUNC_BITMAP_VALUE, BitmapDistinctValueAggFunc.class);
+        UDAF_MAP.put(FUNC_INTERSECT_COUNT_DISTINCT_V2, BitmapIntersectDistinctCountAggFuncV2.class);
+        UDAF_MAP.put(FUNC_INTERSECT_VALUE_V2, BitmapIntersectValueAggFuncV2.class);
+        UDAF_MAP.put(FUNC_INTERSECT_BITMAP_UUID_V2, BitmapUuidIntersectAggFuncV2.class);
+        UDAF_MAP.put(FUNC_SUBTRACT_COUNT_DISTINCT, BitmapSubtractCountAggFunc.class);
+        UDAF_MAP.put(FUNC_SUBTRACT_VALUE, BitmapSubtractValueAggFunc.class);
+        UDAF_MAP.put(FUNC_INTERSECT_SUBTRACT_VALUE,BitmapIntersectSubtractValueAggFunc.class);
+        UDAF_MAP.put(FUNC_INTERSECT_SUBTRACT_COUNT,BitmapIntersectSubtractCountAggFunc.class);
+    }
 
     @Override
     public Map<String, Class<?>> getRewriteCalciteAggrFunctions() {
@@ -177,7 +212,16 @@ public class BitmapMeasureType extends MeasureType<BitmapCounter> {
     @Override
     public void adjustSqlDigest(List<MeasureDesc> measureDescs, SQLDigest sqlDigest) {
         for (SQLCall call : sqlDigest.aggrSqlCalls) {
-            if (FUNC_INTERSECT_COUNT_DISTINCT.equals(call.function)) {
+            if (FUNC_INTERSECT_COUNT_DISTINCT.equals(call.function)
+                    || FUNC_INTERSECT_VALUE.equals(call.function)
+                    || FUNC_INTERSECT_BITMAP_UUID.equals(call.function)
+                    || FUNC_INTERSECT_COUNT_DISTINCT_V2.equals(call.function)
+                    || FUNC_INTERSECT_VALUE_V2.equals(call.function)
+                    || FUNC_INTERSECT_BITMAP_UUID_V2.equals(call.function)
+                    || FUNC_SUBTRACT_COUNT_DISTINCT.equals(call.function)
+                    || FUNC_SUBTRACT_VALUE.equals(call.function)
+                    || FUNC_INTERSECT_SUBTRACT_VALUE.equals(call.function)
+                    || FUNC_INTERSECT_SUBTRACT_COUNT.equals(call.function)){
                 TblColRef col = (TblColRef) call.args.get(1);
                 if (!sqlDigest.groupbyColumns.contains(col))
                     sqlDigest.groupbyColumns.add(col);

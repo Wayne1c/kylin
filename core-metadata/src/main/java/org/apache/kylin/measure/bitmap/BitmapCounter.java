@@ -46,6 +46,12 @@ public interface BitmapCounter extends Iterable<Integer> {
     void andWith(BitmapCounter another);
 
     /**
+     * In-place bitwise XOR (symmetric difference) operation. The current bitmap is modified.
+     * @param another other bitmap
+     */
+    void xorWith(BitmapCounter another);
+
+    /**
      * reset to an empty bitmap
      */
     void clear();

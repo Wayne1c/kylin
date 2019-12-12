@@ -1750,6 +1750,8 @@ public abstract class KylinConfigBase implements Serializable {
         udfMap.put("version", "org.apache.kylin.query.udf.VersionUDF");
         udfMap.put("concat", "org.apache.kylin.query.udf.ConcatUDF");
         udfMap.put("massin", "org.apache.kylin.query.udf.MassInUDF");
+        udfMap.put("intersect_count_by_col", "org.apache.kylin.query.udf.BitmapIntersectCountColUDF");
+        udfMap.put("intersect_value_by_col", "org.apache.kylin.query.udf.BitmapIntersectValueColUDF");
         Map<String, String> overrideUdfMap = getPropertiesByPrefix("kylin.query.udf.");
         udfMap.putAll(overrideUdfMap);
         return udfMap;
@@ -2316,5 +2318,7 @@ public abstract class KylinConfigBase implements Serializable {
     public int getStaleJobThresholdInDays() {
         return Integer.parseInt(getOptional("kylin.tool.health-check.stale-job-threshold-days", "30"));
     }
-
+    public String getIntersectFilterOrSeparator() {
+                return getOptional("kylin.query.udf.intersect.separator", "|");
+           }
 }

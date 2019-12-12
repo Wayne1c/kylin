@@ -597,8 +597,20 @@ public abstract class GTCubeStorageQueryBase implements IStorageQuery {
             }
         }
         for (SQLDigest.SQLCall aggrSQLCall : aggrSQLCalls) {
-            if (aggrSQLCall.function.equals(BitmapMeasureType.FUNC_INTERSECT_COUNT_DISTINCT)) {
-                logger.info("exactAggregation is false because has INTERSECT_COUNT");
+            if (aggrSQLCall.function.equals(BitmapMeasureType.FUNC_INTERSECT_COUNT_DISTINCT)
+            || aggrSQLCall.function.equals(BitmapMeasureType.FUNC_INTERSECT_VALUE)
+            || aggrSQLCall.function.equals(BitmapMeasureType.FUNC_INTERSECT_BITMAP_UUID)
+            || aggrSQLCall.function.equals(BitmapMeasureType.FUNC_BITMAP_UUID)
+            || aggrSQLCall.function.equals(BitmapMeasureType.FUNC_BITMAP_VALUE)
+            || aggrSQLCall.function.equals(BitmapMeasureType.FUNC_INTERSECT_COUNT_DISTINCT_V2)
+            || aggrSQLCall.function.equals(BitmapMeasureType.FUNC_INTERSECT_VALUE_V2)
+            || aggrSQLCall.function.equals(BitmapMeasureType.FUNC_INTERSECT_BITMAP_UUID_V2)
+            || aggrSQLCall.function.equals(BitmapMeasureType.FUNC_SUBTRACT_COUNT_DISTINCT)
+            || aggrSQLCall.function.equals(BitmapMeasureType.FUNC_SUBTRACT_VALUE)
+            || aggrSQLCall.function.equals(BitmapMeasureType.FUNC_INTERSECT_SUBTRACT_COUNT)
+            || aggrSQLCall.function.equals(BitmapMeasureType.FUNC_INTERSECT_SUBTRACT_VALUE)
+            ) {
+                logger.info("exactAggregation is false because has INTERSECT_COUNT OR INTERSECT_VALUE OR INTERSECT_BITMAP_UUID OR BITMAP_UUID OR BITMAP_VALUE");
                 return false;
             }
         }
